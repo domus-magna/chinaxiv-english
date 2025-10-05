@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ title or 'ChinaXiv Translations' }}</title>
+    <meta name="description" content="Machine-translated preprints from ChinaXiv (Chinese arXiv)" />
+    <link rel="stylesheet" href="{{ root }}/assets/style.css" />
+    <script>
+      window.MathJax = { tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] } };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" defer></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container">
+        <a href="{{ root }}/" class="brand">ChinaXiv Translations</a>
+        <nav class="nav">
+          <a href="{{ root }}/">Browse</a>
+          <a href="https://www.chinaxiv.org" target="_blank" rel="noopener">Original Site</a>
+          <a href="https://github.com/" target="_blank" rel="noopener">About</a>
+        </nav>
+      </div>
+    </header>
+    <main class="container">
+      {% block content %}{% endblock %}
+    </main>
+    <footer class="site-footer">
+      <div class="container">
+        <p>
+          Translations from <a href="https://www.chinaxiv.org" target="_blank" rel="noopener">ChinaXiv</a>.
+          All content is machine-translated and should be verified with the original source.
+        </p>
+      </div>
+    </footer>
+    <script src="{{ root }}/assets/site.js"></script>
+  </body>
+  </html>

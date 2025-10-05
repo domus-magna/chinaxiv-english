@@ -1,0 +1,50 @@
+name: build-and-deploy
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Tests
+        run: pytest -q
+      - name: Health (OAI only)
+        run: |
+          python -m src.health --skip-openrouter || true
+      - name: Build site (dry-run translation)
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          python -m src.harvest_oai || true
+          latest=$(ls -1t data/records/*.json 2>/dev/null | head -n1 || echo '')
+          if [ -n "$latest" ]; then
+            python -m src.select_and_fetch --records "$latest" --limit 5 --output data/selected.json || true
+          else
+            echo '[]' > data/selected.json
+          fi
+          python -m src.translate --selected data/selected.json --dry-run
+          python -m src.render
+          python -m src.search_index
+          python -m src.make_pdf || true
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CF_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: chinaxiv-english
+          directory: site
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}

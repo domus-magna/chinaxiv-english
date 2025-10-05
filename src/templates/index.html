@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1>Recent Translations from ChinaXiv</h1>
+  <p style="color: #555; margin-bottom: 20px;">
+    Automatically translated preprints from the Chinese arXiv (ChinaXiv).
+    All translations are machine-generated—please verify with the original source.
+  </p>
+
+  <div class="search-block">
+    <input id="search-input" placeholder="Search by title, authors, or abstract…" />
+    <div id="search-results"></div>
+  </div>
+
+  <ul class="item-list" id="items">
+    {% for it in items %}
+      <li>
+        <h3><a href="{{ root }}/items/{{ it.id }}/">{{ it.title_en }}</a></h3>
+        <div class="meta">
+          {{ ', '.join(it.creators or ['Unknown']) }}
+          {% if it.subjects %} — {{ ', '.join(it.subjects or []) }}{% endif %}
+        </div>
+        <div class="meta" style="margin-top: 4px;">{{ it.date }}</div>
+        <p>{{ it.abstract_en[:300] }}{% if it.abstract_en|length > 300 %}…{% endif %}</p>
+      </li>
+    {% endfor %}
+  </ul>
+
+  {% if not items %}
+    <p style="color: #777; font-style: italic; margin-top: 40px;">No translations available yet.</p>
+  {% endif %}
+{% endblock %}
