@@ -39,16 +39,17 @@ def construct_pdf_url(identifier: str) -> str:
 
 def infer_license(item: Dict) -> Dict[str, Any]:
     """
+    DISABLED: We do not care about licenses. All papers translated in full.
+    
     Infer license from Internet Archive metadata.
 
     For V1, default to unknown (derivatives_allowed: None).
     Future: check item metadata for license info.
     """
-    # TODO: Check for license in item metadata
-    # For now, conservative default
+    # DISABLED: We do not care about licenses
     return {
         "raw": "",
-        "derivatives_allowed": None
+        "derivatives_allowed": True  # Always allow derivatives
     }
 
 

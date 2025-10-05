@@ -29,7 +29,7 @@ class TestHarvestIA:
         """Test license inference."""
         # Default case
         result = infer_license({})
-        assert result["derivatives_allowed"] is None
+        assert result["derivatives_allowed"] is True
         assert result["raw"] == ""
     
     def test_normalize_ia_record(self):
@@ -55,7 +55,7 @@ class TestHarvestIA:
         assert result['date'] == '2022-11-01'
         assert result['source_url'] == 'https://archive.org/details/ChinaXiv-202211.00170V1'
         assert result['pdf_url'] == 'https://archive.org/download/ChinaXiv-202211.00170V1/ChinaXiv-202211.00170V1.pdf'
-        assert result['license']['derivatives_allowed'] is None
+        assert result['license']['derivatives_allowed'] is True
         assert result['setSpec'] is None
     
     def test_normalize_ia_record_multiple_creators(self):

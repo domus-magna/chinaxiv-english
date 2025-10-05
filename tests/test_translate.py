@@ -4,6 +4,7 @@ Tests for translation functionality.
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 from src.translate import translate_field, translate_paragraphs, translate_record
+from src.services.translation_service import MathPreservationError
 from src.services.translation_service import TranslationService
 
 
@@ -176,7 +177,7 @@ class TestTranslation:
         
         text = "The equation $x = y$ is simple."
         
-        with pytest.raises(RuntimeError, match="Math placeholder parity check failed"):
+        with pytest.raises(MathPreservationError, match="Math placeholder parity check failed"):
             translate_field(text, "model", [], dry_run=False)
     
     @patch('src.services.translation_service.TranslationService._call_openrouter')

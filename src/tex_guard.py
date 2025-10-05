@@ -19,6 +19,18 @@ MATH_PATTERNS = [
     re.compile(r"\\\((.+?)\\\)", re.DOTALL),
     # Environments: equation, align, gather, etc.
     re.compile(r"\\begin\{(equation\*?|align\*?|gather\*?|multline\*?)\}(.+?)\\end\{\1\}", re.DOTALL),
+    # Citation commands - preserve exactly
+    re.compile(r"\\cite\{[^}]*\}", re.DOTALL),
+    re.compile(r"\\ref\{[^}]*\}", re.DOTALL),
+    re.compile(r"\\eqref\{[^}]*\}", re.DOTALL),
+    re.compile(r"\\label\{[^}]*\}", re.DOTALL),
+    # Other common LaTeX commands that should be preserved
+    re.compile(r"\\textbf\{[^}]*\}", re.DOTALL),
+    re.compile(r"\\textit\{[^}]*\}", re.DOTALL),
+    re.compile(r"\\emph\{[^}]*\}", re.DOTALL),
+    re.compile(r"\\section\{[^}]*\}", re.DOTALL),
+    re.compile(r"\\subsection\{[^}]*\}", re.DOTALL),
+    re.compile(r"\\subsubsection\{[^}]*\}", re.DOTALL),
 ]
 
 

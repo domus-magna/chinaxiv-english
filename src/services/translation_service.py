@@ -20,13 +20,36 @@ from ..models import Paper, Translation
 
 
 SYSTEM_PROMPT = (
-    "Translate from Simplified Chinese to English. Preserve all LaTeX commands and ⟪MATH_*⟫ "
-    "placeholders exactly. Do not rewrite formulas. Obey glossary strictly."
+    "You are a professional scientific translator specializing in academic papers. "
+    "Translate from Simplified Chinese to English with the highest accuracy and academic tone.\n\n"
+    "CRITICAL REQUIREMENTS:\n"
+    "1. Preserve ALL LaTeX commands and ⟪MATH_*⟫ placeholders exactly - do not modify, translate, or rewrite any mathematical formulas\n"
+    "2. Preserve ALL citation commands (\\cite{}, \\ref{}, \\eqref{}, etc.) exactly as they appear\n"
+    "3. Maintain academic tone and formal scientific writing style\n"
+    "4. Use precise technical terminology - obey the glossary strictly\n"
+    "5. Preserve section structure and paragraph organization\n"
+    "6. Translate all content completely - do not omit any information\n\n"
+    "FORMATTING GUIDELINES:\n"
+    "- Keep mathematical expressions in their original LaTeX format\n"
+    "- Preserve equation numbers and references\n"
+    "- Maintain proper academic paragraph structure\n"
+    "- Use formal scientific language appropriate for research papers\n\n"
+    "Remember: Mathematical content and citations must remain untouched - only translate the Chinese text."
 )
 
 
 class OpenRouterError(Exception):
     """OpenRouter API error."""
+    pass
+
+
+class TranslationValidationError(Exception):
+    """Translation validation error."""
+    pass
+
+
+class MathPreservationError(Exception):
+    """Math preservation error."""
     pass
 
 
@@ -122,12 +145,16 @@ class TranslationService:
         if dry_run:
             translated = masked  # identity to preserve placeholders
         else:
-            translated = self._call_openrouter(masked, model, self.glossary)
+            translated = self._call_openrouter_with_fallback(masked, model, self.glossary)
         
         if not verify_token_parity(mappings, translated):
-            raise RuntimeError("Math placeholder parity check failed")
+            raise MathPreservationError("Math placeholder parity check failed")
         
         unmasked = unmask_math(translated, mappings)
+        
+        # Additional validation checks
+        self._validate_translation(text, unmasked)
+        
         return unmasked
     
     def translate_paragraphs(self, paragraphs: List[str], model: Optional[str] = None, dry_run: bool = False) -> List[str]:
@@ -155,21 +182,22 @@ class TranslationService:
         Args:
             record: Record to translate
             dry_run: If True, skip actual translation
-            force_full_text: If True, translate full text regardless of license
+            force_full_text: If True, translate full text regardless of license (always True now)
             
         Returns:
             Translated record
         """
-        from ..licenses import decide_derivatives_allowed
+        # DISABLED: We do not care about licenses. All papers translated in full.
+        # from ..licenses import decide_derivatives_allowed
         
-        # Respect license gate (unless forced)
-        record = decide_derivatives_allowed(record, self.config)
+        # DISABLED: License gate - always translate full text
+        # record = decide_derivatives_allowed(record, self.config)
         
         # Convert to Paper model
         paper = Paper.from_dict(record)
         
-        # Allow full text if explicitly permitted by license OR if force_full_text is enabled
-        allow_full = paper.is_derivatives_allowed() or force_full_text
+        # DISABLED: Always allow full text - we don't care about licenses
+        allow_full = True
         
         # Create translation from paper
         translation = Translation.from_paper(paper)
@@ -253,8 +281,8 @@ class TranslationService:
                 rec['files']['pdf_path'] = pdf_result['pdf_path']
                 log(f"Downloaded and extracted {pdf_result['num_paragraphs']} paragraphs from PDF")
         
-        # Translate (force full text if with_full_text is enabled)
-        tr = self.translate_record(rec, dry_run=dry_run, force_full_text=with_full_text)
+        # Translate (always translate full text - we don't care about licenses)
+        tr = self.translate_record(rec, dry_run=dry_run, force_full_text=True)
         
         # Apply formatting/prettification
         from ..format_translation import format_translation
@@ -267,3 +295,76 @@ class TranslationService:
         write_json(out_path, tr)
         
         return out_path
+    
+    def _validate_translation(self, original: str, translated: str) -> None:
+        """
+        Perform additional validation checks on translation quality.
+        
+        Args:
+            original: Original Chinese text
+            translated: Translated English text
+            
+        Raises:
+            TranslationValidationError: If validation fails
+        """
+        # Check for empty translation
+        if not translated or translated.strip() == "":
+            raise TranslationValidationError("Translation is empty")
+        
+        # Check for reasonable length (translated should be roughly 1.2-2x original length)
+        orig_len = len(original.strip())
+        trans_len = len(translated.strip())
+        
+        if orig_len > 0:
+            ratio = trans_len / orig_len
+            if ratio < 0.5 or ratio > 3.0:
+                log(f"Warning: Unusual translation length ratio: {ratio:.2f} (original: {orig_len}, translated: {trans_len})")
+        
+        # Check for common translation issues
+        if "⟪MATH_" in translated:
+            raise TranslationValidationError("Math placeholders found in final translation")
+        
+        # Check for citation preservation
+        import re
+        orig_citations = re.findall(r'\\cite\{[^}]*\}', original)
+        trans_citations = re.findall(r'\\cite\{[^}]*\}', translated)
+        
+        if len(orig_citations) != len(trans_citations):
+            log(f"Warning: Citation count mismatch (original: {len(orig_citations)}, translated: {len(trans_citations)})")
+        
+        # Check for LaTeX command preservation
+        orig_latex = re.findall(r'\\[a-zA-Z]+\{[^}]*\}', original)
+        trans_latex = re.findall(r'\\[a-zA-Z]+\{[^}]*\}', translated)
+        
+        if len(orig_latex) != len(trans_latex):
+            log(f"Warning: LaTeX command count mismatch (original: {len(orig_latex)}, translated: {len(trans_latex)})")
+    
+    def _call_openrouter_with_fallback(self, text: str, model: str, glossary: List[Dict[str, str]]) -> str:
+        """
+        Call OpenRouter API with fallback to alternate models on failure.
+        
+        Args:
+            text: Text to translate
+            model: Primary model to use
+            glossary: Translation glossary
+            
+        Returns:
+            Translated text
+            
+        Raises:
+            OpenRouterError: If all models fail
+        """
+        models_to_try = [model] + self.config.get("models", {}).get("alternates", [])
+        
+        last_error = None
+        for model_to_try in models_to_try:
+            try:
+                log(f"Attempting translation with model: {model_to_try}")
+                return self._call_openrouter(text, model_to_try, glossary)
+            except OpenRouterError as e:
+                last_error = e
+                log(f"Model {model_to_try} failed: {e}")
+                continue
+        
+        # All models failed
+        raise OpenRouterError(f"All translation models failed. Last error: {last_error}")
