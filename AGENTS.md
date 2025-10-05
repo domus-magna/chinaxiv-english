@@ -29,7 +29,15 @@
 - Framework: pytest (+ pytest-cov).
 - Location/pattern: `tests/test_*.py`; mirror module names.
 - Targets: unit tests for parsing, masking/unmasking, license gate; smoke test for end-to-end build on 1–2 items.
-- Coverage: aim ≥80% on core text/masking utilities. Run: `pytest -q` or `pytest --cov=src`.
+- Coverage: aim ≥80% on core text/masking utilities.
+
+### Test Commands
+- **Run all tests**: `python -m pytest tests/ -v --tb=short`
+- **Run specific test file**: `python -m pytest tests/test_translate.py -v`
+- **Run with coverage**: `python -m pytest tests/ --cov=src --cov-report=term-missing`
+- **Run E2E tests**: `python -m pytest tests/test_e2e_simple.py -v`
+- **Run core tests only**: `python -m pytest tests/test_translate.py tests/test_tex_guard.py tests/test_format_translation.py tests/test_job_queue.py tests/test_harvest_ia.py tests/test_e2e_simple.py -v`
+- **Quick test run**: `python -m pytest tests/ -q`
 
 ## Commit & Pull Request Guidelines
 - Commits: Conventional Commits (e.g., `feat:`, `fix:`, `chore:`). Example: `feat(translate): mask inline math tokens`.
