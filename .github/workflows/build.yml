@@ -28,6 +28,7 @@ jobs:
       - name: Build site (Internet Archive approach)
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
           # Harvest from Internet Archive
           python -m src.harvest_ia --limit 10 || true
@@ -47,6 +48,13 @@ jobs:
           python -m src.render
           python -m src.search_index
           python -m src.make_pdf || true
+          
+          # Send Discord notification on success
+          if [ -n "$DISCORD_WEBHOOK_URL" ]; then
+            curl -H "Content-Type: application/json" \
+                 -d '{"embeds":[{"title":"✅ CI/CD Pipeline Success","color":3066993,"fields":[{"name":"Status","value":"Site deployed successfully","inline":true},{"name":"Environment","value":"GitHub Actions","inline":true}]}]}' \
+                 "$DISCORD_WEBHOOK_URL" || true
+          fi
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/pages-action@v1
         with:
