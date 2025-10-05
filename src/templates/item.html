@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block content %}
+  <article class="paper">
+    <div class="banner">⚠ Machine translation. Verify with original.</div>
+
+    <div style="margin-bottom: 16px;">
+      <span class="descriptor">Title:</span> {{ item.title_en }}
+    </div>
+
+    <div style="margin-bottom: 16px;">
+      <span class="descriptor">Authors:</span> {{ ', '.join(item.creators or ['Unknown']) }}
+    </div>
+
+    <div class="actions">
+      {% if item.pdf_url %}<a href="{{ item.pdf_url }}" class="btn" target="_blank" rel="noopener">Download PDF</a>{% endif %}
+      <a href="{{ '/items/' ~ item.id ~ '/' ~ item.id ~ '.md' }}" class="btn">View Markdown</a>
+      {% if item.body_en %}<a href="{{ '/items/' ~ item.id ~ '/' ~ item.id ~ '.pdf' }}" class="btn">Full Text PDF</a>{% endif %}
+    </div>
+
+    <div class="meta">
+      <span>Submitted: {{ item.date }}</span>
+      {% if item.subjects %}
+      <span> | Subjects: {{ ', '.join(item.subjects or []) }}</span>
+      {% endif %}
+      {% if item.license and item.license.badge %}
+      <span class="badge">{{ item.license.badge }}</span>
+      {% endif %}
+    </div>
+
+    <h2>Abstract</h2>
+    <div class="abstract">{{ item.abstract_en }}</div>
+
+    {% if item.formatted_body_md %}
+      <h2>Full Text</h2>
+      <div class="full-text-preview">
+        {{ item.formatted_body_md | markdown | safe }}
+      </div>
+    {% elif item.body_en %}
+      <h2>Full Text</h2>
+      <div class="full-text-preview">
+        {% for p in item.body_en %}
+          <p>{{ p }}</p>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <div class="source">
+      <a href="{{ item.source_url }}" target="_blank" rel="noopener">View original on ChinaXiv</a>
+    </div>
+  </article>
+{% endblock %}
+

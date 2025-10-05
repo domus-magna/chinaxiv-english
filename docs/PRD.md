@@ -73,7 +73,7 @@ References:
    - MiniSearch/Lunr loaded as single JS file; instant results
 
 7) Automation & Deploy
-   - GitHub Actions nightly (03:00 UTC): harvest → license gate → fetch → translate → render → index → deploy to Pages
+   - GitHub Actions nightly (03:00 UTC): harvest → license gate → fetch → translate → render → index → deploy to Cloudflare Pages
    - Idempotent via `seen.json` cache; only process new IDs
    - Log per-item model slug and token counts for cost tracking
 
@@ -88,21 +88,23 @@ Repository layout
 ```
 repo/
   src/
-    harvest_oai.py         # pull yesterday’s records (OAI-PMH)
+    harvest_ia.py          # harvest from Internet Archive ChinaXiv mirror
     licenses.py            # parse license; decide derivative permission
-    select_and_fetch.py    # seen cache, fetch PDF and optional LaTeX
+    select_and_fetch.py    # seen cache, fetch PDF from IA
     tex_guard.py           # mask/unmask math and LaTeX
     translate.py           # OpenRouter adapter (DeepSeek default; Z.AI optional)
     render.py              # Jinja2 → HTML + Markdown
     make_pdf.py            # Tectonic (LaTeX) or Pandoc (MD) to PDF
     search_index.py        # build search-index.json
-    utils.py               # shared helpers (http, xml, tokens)
-    config.yaml            # model slugs, prompts, OAI params, license mappings
+    utils.py               # shared helpers (http, json, tokens)
+    config.yaml            # model slugs, prompts, IA endpoints, license mappings
   data/
     seen.json              # processed IDs cache
-    raw_xml/               # saved OAI responses (truncate/rotate by policy)
+    raw_json/              # saved IA API responses (optional)
   assets/                  # CSS, logo, MathJax, MiniSearch/Lunr
   site/                    # generated static site (deploy target)
+  docs/
+    INTERNET_ARCHIVE_PLAN.md  # migration plan and implementation guide
   .github/workflows/build.yml
 ```
 
@@ -126,13 +128,36 @@ Data model (normalized JSON per record)
 }
 ```
 
-OAI-PMH harvesting
-- Start: `Identify` for availability; log repositoryName/earliestDatestamp/granularity
-- Harvest: `ListRecords&metadataPrefix=oai_eprint&from=YYYY-MM-DD&until=YYYY-MM-DD`
-- Paging: follow `resumptionToken` until exhausted
-- Fallback: if `oai_eprint` missing fields, attempt `oai_dc`
-- Storage: write raw XML (per page) to `data/raw_xml/YYYY-MM-DD/part_N.xml`
-- Normalization: extract identifiers, titles, creators, subjects, abstracts, dates, and links
+Internet Archive harvesting
+- Endpoint: `https://archive.org/services/search/v1/scrape`
+- Query: `collection:chinaxivmirror`
+- Fields: `identifier,chinaxiv,title,creator,subject,date,description`
+- Paging: cursor-based pagination (unlimited results, no 10K limit)
+- Storage: optional JSON caching to `data/raw_json/` for debugging
+- Normalization: map IA fields to standard format:
+  - `identifier` → `id` (prefixed with `ia-`)
+  - `chinaxiv` → `oai_identifier` (original ChinaXiv ID)
+  - `title` → `title`
+  - `creator` → `creators` (ensure list)
+  - `description` → `abstract`
+  - `subject` → `subjects` (ensure list)
+  - `date` → `date`
+- PDF download: `https://archive.org/download/{identifier}/{filename}.pdf`
+
+Data Source: Internet Archive (Replaces ChinaXiv OAI-PMH)
+- **Issue**: ChinaXiv OAI-PMH endpoint returns "Sorry!You have no right to access this web" - hard-blocked at application level (tested all headers/cookies/proxies)
+- **Solution**: Harvest from Internet Archive's ChinaXiv mirror collection
+- **Benefits**:
+  - ✅ 30,817+ papers with full metadata and PDFs
+  - ✅ No authentication, no geo-blocking, no bot detection
+  - ✅ Simple JSON API with cursor pagination
+  - ✅ Zero proxy costs (no Bright Data needed)
+- **API Endpoints**:
+  - Scraping: `https://archive.org/services/search/v1/scrape?q=collection:chinaxivmirror`
+  - Metadata: `https://archive.org/metadata/{identifier}`
+  - Download: `https://archive.org/download/{identifier}/{filename}`
+- **Migration**: See `docs/INTERNET_ARCHIVE_PLAN.md` for implementation details
+- **Deprecated**: Proxy setup (Bright Data, GCP Shadowsocks) no longer needed
 
 License parsing and policy
 - Prefer explicit license fields in metadata; else inspect landing page (meta/link/notice)
@@ -161,6 +186,16 @@ Translation adapter (OpenRouter)
 - Glossary:
   - Simple bilingual string or JSON list; prepend to each request
 
+Batch translation (future option)
+- Some providers expose asynchronous batch endpoints with longer SLAs (e.g., 12–24 hours) at materially lower cost (often ~50%).
+- DeepSeek and Z.AI GLM do not currently advertise such endpoints on OpenRouter; re-evaluate periodically.
+- Design implications if adopted later:
+  - Submit segment batches (title/abstract/body paragraphs) with stable segment IDs; poll or receive callback.
+  - Store batch job IDs and per-segment outputs under `data/batches/` to remain idempotent.
+  - Nightly pipeline can run in two phases: submit on day N, collect + render on day N+1.
+  - Cost estimator should support batch pricing tiers alongside on-demand.
+  - Math token parity checks still apply when reassembling.
+
 Rendering & assets
 - Jinja2 templates for index and item pages; arXiv-like typography
 - MathJax for equations
@@ -180,6 +215,7 @@ Automation (GitHub Actions)
 Observability & cost tracking
 - Log per-item: model slug, input/output tokens, computed cost per model pricing table
 - Daily summary report artifact (JSON) for costs and counts
+ - Note: If batch endpoints become available with different pricing/SLAs, extend logging to tag `mode: batch|realtime` and adjust pricing tables accordingly.
 
 ### Non‑Functional Requirements
 - Deterministic idempotency for re-runs (skip seen IDs)
@@ -193,6 +229,7 @@ Observability & cost tracking
 - Model inconsistency on math-heavy paragraphs → stricter masking and glossary; optional Z.AI route
 - Cost drift → token logging and pricing configuration; alert if daily estimate exceeds threshold
 - Large PDFs or missing LaTeX → fall back to Markdown → Pandoc
+- Proxy failures or geo-blocking → Bright Data residential proxies with China IPs; fallback to retry with exponential backoff; monitor proxy quota and costs
 
 ### Milestones
 1. Harvest + normalize + seen cache (1 day)
@@ -210,11 +247,16 @@ Observability & cost tracking
 
 ### Configuration
 - `config.yaml`:
-  - `oai.base_url`, `sets`, `date_window`
+  - `internet_archive.collection`, `base_url`, `batch_size`
   - `models.default_slug`, `models.alternates`
   - `glossary`
   - `license_mappings`
-- Secrets: `OPENROUTER_API_KEY` (GitHub repo secret)
+- Secrets (GitHub repo secrets and `.env`):
+  - `OPENROUTER_API_KEY` (required)
+- Deprecated config (no longer needed with IA approach):
+  - `oai.base_url` (ChinaXiv OAI-PMH blocked)
+  - `proxy.*` settings
+  - `BRIGHTDATA_API_KEY`
 
 ### Appendix
 Pricing references (subject to change; verify on model pages):
@@ -231,5 +273,3 @@ Links
 - DeepSeek API docs: `https://api-docs.deepseek.com`
 - Z.AI docs: `https://docs.z.ai`
 - OAI-PMH spec: `https://www.openarchives.org/OAI/openarchivesprotocol.html`
-
-
