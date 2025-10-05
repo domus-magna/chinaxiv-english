@@ -24,7 +24,7 @@ from .cost_tracker import compute_cost, append_cost_log, now_iso
 from .token_utils import estimate_tokens, chunk_paragraphs
 
 # Logging
-from .logging import log
+from .logging_utils import log
 
 # Data utilities
 from .data_utils import utc_date_range_str, stable_id_from_oai

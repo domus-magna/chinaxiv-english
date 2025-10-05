@@ -11,6 +11,7 @@ from .render import run_cli as render_cli
 from .search_index import run_cli as search_cli
 from .make_pdf import run_cli as pdf_cli
 from .utils import log
+from .discord_alerts import DiscordAlerts
 
 
 def find_latest_records_json() -> Optional[str]:
@@ -68,6 +69,11 @@ def run_cli() -> None:
     os.system("python -m src.render")
     os.system("python -m src.search_index")
     os.system("python -m src.make_pdf")
+    
+    # Send success notification to Discord
+    alerts = DiscordAlerts()
+    alerts.pipeline_success(args.limit, 0.0)  # Cost would need to be calculated
+    
     log("Pipeline complete.")
 
 

@@ -13,7 +13,7 @@ from .services.translation_service import TranslationService
 from .services.license_service import LicenseService
 from .config import get_config
 from .file_service import read_json, write_json
-from .logging import log
+from .logging_utils import log
 
 
 # Backward compatibility functions

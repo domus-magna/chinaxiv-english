@@ -15,7 +15,7 @@ from ..tex_guard import mask_math, unmask_math, verify_token_parity
 from ..body_extract import extract_body_paragraphs
 from ..token_utils import chunk_paragraphs
 from ..cost_tracker import compute_cost, append_cost_log
-from ..logging import log
+from ..logging_utils import log
 from ..models import Paper, Translation
 
 

@@ -17,8 +17,17 @@ from typing import Dict, List, Optional
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from config import get_config
-from logging import log
 from file_service import read_json, write_json
+
+# Import logging from src to avoid conflicts
+import importlib.util
+spec = importlib.util.spec_from_file_location("logging", os.path.join(os.path.dirname(__file__), '..', 'src', 'logging_utils.py'))
+logging_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(logging_module)
+log = logging_module.log
+
+# Import DiscordAlerts after fixing logging
+from discord_alerts import DiscordAlerts
 
 
 def check_api_connectivity() -> Dict[str, bool]:
@@ -249,6 +258,23 @@ def generate_health_report() -> Dict[str, any]:
     else:
         report['overall_status'] = 'unhealthy'
     
+    # Send Discord alerts for critical issues
+    alerts = DiscordAlerts()
+    
+    # Check for critical issues
+    if report['overall_status'] == 'unhealthy':
+        if not api_ok:
+            failed_apis = [service for service, status in report['api_connectivity'].items() if not status]
+            alerts.api_error(', '.join(failed_apis), 'API connectivity failed')
+        
+        if not site_ok:
+            alerts.site_down('Site not responding', 0)
+    
+    # Check cost threshold
+    daily_cost = report['costs']['daily_cost']
+    if daily_cost > 5.0:  # $5 threshold
+        alerts.cost_threshold(daily_cost, 5.0)
+    
     return report
 
 
@@ -324,8 +350,21 @@ def main():
     parser.add_argument("--output", help="Save report to JSON file")
     parser.add_argument("--watch", action="store_true", help="Watch mode - update every 30 seconds")
     parser.add_argument("--quiet", action="store_true", help="Quiet mode - no console output")
+    parser.add_argument("--discord-summary", action="store_true", help="Send daily summary to Discord")
+    parser.add_argument("--test-discord", action="store_true", help="Test Discord webhook")
     
     args = parser.parse_args()
+    
+    # Test Discord webhook if requested
+    if args.test_discord:
+        alerts = DiscordAlerts()
+        success = alerts.test_alert()
+        if success:
+            print("✅ Discord webhook test successful!")
+        else:
+            print("❌ Discord webhook test failed!")
+            print("Make sure DISCORD_WEBHOOK_URL is set")
+        return
     
     if args.watch:
         print("Starting health monitor (Ctrl+C to stop)...")
@@ -353,6 +392,19 @@ def main():
         
         if args.output:
             save_health_report(report, args.output)
+        
+        # Send Discord summary if requested
+        if args.discord_summary:
+            alerts = DiscordAlerts()
+            stats = {
+                'papers_processed': report['data_health']['translated_count'],
+                'daily_cost': report['costs']['daily_cost'],
+                'success_rate': 95.0,  # Placeholder - could calculate from worker health
+                'site_status': report['overall_status'],
+                'search_index_size': report['site_health']['items_count'],
+                'last_update': report['data_health']['last_translation']
+            }
+            alerts.daily_summary(stats)
 
 
 if __name__ == "__main__":
