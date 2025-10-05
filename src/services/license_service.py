@@ -6,6 +6,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 
 from ..config import get_config
+from ..models import License
 
 
 class LicenseService:
@@ -56,7 +57,8 @@ class LicenseService:
         """
         if not license_info:
             return False
-        return bool(license_info.get("derivatives_allowed", False))
+        license_obj = License.from_dict(license_info)
+        return license_obj.is_derivatives_allowed()
     
     def get_license_summary(self, record: Dict[str, Any]) -> str:
         """
@@ -72,8 +74,5 @@ class LicenseService:
         if not license_info:
             return "No license information"
         
-        license_type = license_info.get("type", "Unknown")
-        derivatives_allowed = license_info.get("derivatives_allowed", False)
-        
-        status = "Allowed" if derivatives_allowed else "Not allowed"
-        return f"{license_type} - Derivatives: {status}"
+        license_obj = License.from_dict(license_info)
+        return license_obj.get_summary()
