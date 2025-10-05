@@ -23,11 +23,9 @@ Translate ChinaXiv preprints to English with high math/LaTeX fidelity and publis
 - Use OAI-PMH endpoints published by ChinaXiv. See ChinaXiv help and OAI references.
   - Identify/ListRecords with `metadataPrefix=oai_eprint` (fallback `oai_dc`)
   - Selective harvest by date using `from`/`until` (UTC)
-- Attribution: Prominent “Source: ChinaXiv” with link on every page.
-- Respect article-level licenses:
-  - If derivatives allowed → publish translated full text
-  - If derivatives forbidden/unclear → publish translated title+abstract only, link to original PDF
-- Show license badge and “Machine translation. Verify with original.” banner on item pages.
+- Attribution: Prominent "Source: ChinaXiv" with link on every page.
+- **LICENSE POLICY: We do not care about licenses.** All papers will be translated in full regardless of license restrictions. License-related code has been commented out.
+- Show "Machine translation. Verify with original." banner on item pages.
 
 References:
 - ChinaXiv help and OAI endpoint examples: `https://astro.chinaxiv.org` / `http://www.chinaxiv.org`
@@ -48,9 +46,8 @@ References:
    - Normalize to JSON with fields: `id`, `oai_identifier`, `title`, `creators`, `subjects`, `abstract`, `date`, `pdf_url`, `source_url`, `license`, `setSpec` (if any)
 
 2) License Gate
-   - Parse license terms from metadata; if missing, scrape landing page tag/notice
-   - Decision: `derivatives_allowed: true|false|unknown`
-   - Enforce attribution and license display on all pages
+   - **DISABLED: We do not care about licenses.** All papers translated in full.
+   - License-related code commented out in the codebase.
 
 3) Fetch
    - Download original PDF for every item (for user download + fallback reference)
@@ -58,7 +55,7 @@ References:
 
 4) Translation
    - Mask LaTeX/math before translation; unmask after
-   - Translate title, abstract, and full text (if permitted)
+   - Translate title, abstract, and full text (all papers translated in full)
    - Chunk by section/paragraph under token budget; maintain order
    - Glossary support for common ML terms (applied across model routes)
 
@@ -160,9 +157,8 @@ Data Source: Internet Archive (Replaces ChinaXiv OAI-PMH)
 - **Deprecated**: Proxy setup (Bright Data, GCP Shadowsocks) no longer needed
 
 License parsing and policy
-- Prefer explicit license fields in metadata; else inspect landing page (meta/link/notice)
-- Map common licenses to `derivatives_allowed` via `config.yaml` (e.g., CC-BY → true; CC-BY-ND → false)
-- If unknown: treat as non-derivative → title/abstract only
+- **DISABLED: We do not care about licenses.** All papers translated in full regardless of license restrictions.
+- License-related code has been commented out in the codebase.
 
 Math/LaTeX preservation
 - Mask patterns before translation:
@@ -225,7 +221,6 @@ Observability & cost tracking
 
 ### Risks & Mitigations
 - Endpoint instability → Retry with backoff; resume via `resumptionToken`
-- License ambiguity → Default to abstract-only; add review flag
 - Model inconsistency on math-heavy paragraphs → stricter masking and glossary; optional Z.AI route
 - Cost drift → token logging and pricing configuration; alert if daily estimate exceeds threshold
 - Large PDFs or missing LaTeX → fall back to Markdown → Pandoc
@@ -233,24 +228,24 @@ Observability & cost tracking
 
 ### Milestones
 1. Harvest + normalize + seen cache (1 day)
-2. License gate + fetch PDFs (1 day)
+2. Fetch PDFs (1 day)
 3. Mask/translate/unmask (2–3 days)
 4. Render + PDF + search index (1–2 days)
 5. CI/CD + Pages deploy + smoke tests (1 day)
 
 ### Acceptance Criteria
-- Nightly job publishes yesterday’s eligible records with correct license treatment
+- Nightly job publishes yesterday's eligible records (all translated in full)
 - Math placeholder parity = 100%; random spot check of 20 paragraphs OK
 - Pages site loads and search returns results instantly on a sample of ≥100 items
 - Download links for original PDF, translated Markdown, and PDF work
-- Attribution and license visible on all item pages
+- Attribution visible on all item pages
 
 ### Configuration
 - `config.yaml`:
   - `internet_archive.collection`, `base_url`, `batch_size`
   - `models.default_slug`, `models.alternates`
   - `glossary`
-  - `license_mappings`
+  - `license_mappings` (commented out - we don't care about licenses)
 - Secrets (GitHub repo secrets and `.env`):
   - `OPENROUTER_API_KEY` (required)
 - Deprecated config (no longer needed with IA approach):

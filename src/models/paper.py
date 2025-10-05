@@ -102,7 +102,9 @@ class Paper:
         return ", ".join(self.subjects)
     
     def is_derivatives_allowed(self) -> bool:
-        """Check if derivatives are allowed based on license."""
-        if not self.license:
-            return False
-        return self.license.is_derivatives_allowed()
+        """DISABLED: We do not care about licenses. Always return True."""
+        # DISABLED: We do not care about licenses. All papers translated in full.
+        return True
+        # if not self.license:
+        #     return False
+        # return self.license.is_derivatives_allowed()
