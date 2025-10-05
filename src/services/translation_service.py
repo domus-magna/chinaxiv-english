@@ -16,6 +16,7 @@ from ..body_extract import extract_body_paragraphs
 from ..token_utils import chunk_paragraphs
 from ..cost_tracker import compute_cost, append_cost_log
 from ..logging import log
+from ..models import Paper, Translation
 
 
 SYSTEM_PROMPT = (
@@ -164,47 +165,41 @@ class TranslationService:
         # Respect license gate (unless forced)
         record = decide_derivatives_allowed(record, self.config)
         
+        # Convert to Paper model
+        paper = Paper.from_dict(record)
+        
         # Allow full text if explicitly permitted by license OR if force_full_text is enabled
-        allow_full = bool((record.get("license") or {}).get("derivatives_allowed")) or force_full_text
+        allow_full = paper.is_derivatives_allowed() or force_full_text
         
-        out: Dict[str, Any] = {
-            "id": record["id"], 
-            "oai_identifier": record.get("oai_identifier")
-        }
+        # Create translation from paper
+        translation = Translation.from_paper(paper)
         
-        title_src = record.get("title") or ""
-        abstract_src = record.get("abstract") or ""
+        # Translate title and abstract
+        title_src = paper.title or ""
+        abstract_src = paper.abstract or ""
         
-        out["title_en"] = self.translate_field(title_src, dry_run=dry_run)
-        out["abstract_en"] = self.translate_field(abstract_src, dry_run=dry_run)
-        out["license"] = record.get("license")
-        out["source_url"] = record.get("source_url")
-        out["pdf_url"] = record.get("pdf_url")
-        out["creators"] = record.get("creators")
-        out["subjects"] = record.get("subjects")
-        out["date"] = record.get("date")
+        translation.title_en = self.translate_field(title_src, dry_run=dry_run)
+        translation.abstract_en = self.translate_field(abstract_src, dry_run=dry_run)
         
-        body_en: Optional[List[str]] = None
+        # Translate body if allowed
         if allow_full:
             paras = extract_body_paragraphs(record)
             if paras:
-                body_en = self.translate_paragraphs(paras, dry_run=dry_run)
-        
-        out["body_en"] = body_en
+                translation.body_en = self.translate_paragraphs(paras, dry_run=dry_run)
         
         # Cost tracking (approximate)
         from ..token_utils import estimate_tokens
         in_toks = estimate_tokens(title_src) + estimate_tokens(abstract_src)
-        out_toks = estimate_tokens(out.get("title_en") or "") + estimate_tokens(out.get("abstract_en") or "")
+        out_toks = estimate_tokens(translation.title_en or "") + estimate_tokens(translation.abstract_en or "")
         
-        if body_en:
+        if translation.body_en:
             in_toks += sum(estimate_tokens(p) for p in paras)
-            out_toks += sum(estimate_tokens(p) for p in body_en)
+            out_toks += sum(estimate_tokens(p) for p in translation.body_en)
         
         cost = compute_cost(self.model, in_toks, out_toks, self.config)
-        append_cost_log(record["id"], self.model, in_toks, out_toks, cost)
+        append_cost_log(paper.id, self.model, in_toks, out_toks, cost)
         
-        return out
+        return translation.to_dict()
     
     def translate_paper(self, paper_id: str, dry_run: bool = False, with_full_text: bool = True) -> str:
         """

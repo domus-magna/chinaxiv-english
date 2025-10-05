@@ -6,21 +6,14 @@ import os
 from typing import Any, Dict, List
 
 from .utils import read_json, write_json, log
+from .models import Translation
 
 
 def build_index(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     idx: List[Dict[str, Any]] = []
-    for it in items:
-        idx.append(
-            {
-                "id": it.get("id"),
-                "title": it.get("title_en"),
-                "authors": ", ".join(it.get("creators") or []),
-                "abstract": it.get("abstract_en"),
-                "subjects": ", ".join(it.get("subjects") or []),
-                "date": it.get("date"),
-            }
-        )
+    for item_data in items:
+        translation = Translation.from_dict(item_data)
+        idx.append(translation.get_search_index_entry())
     return idx
 
 
