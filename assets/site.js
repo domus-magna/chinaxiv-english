@@ -3,7 +3,25 @@
   const results = document.getElementById('search-results');
   if (!input || !results) return;
   let index = [];
-  fetch('search-index.json').then(r => r.json()).then(data => index = data).catch(() => {});
+  
+  // Try compressed index first, fallback to uncompressed
+  fetch('search-index.json.gz')
+    .then(r => {
+      if (r.ok) {
+        return r.arrayBuffer().then(buf => {
+          const decompressed = pako.inflate(new Uint8Array(buf), { to: 'string' });
+          return JSON.parse(decompressed);
+        });
+      } else {
+        return fetch('search-index.json').then(r => r.json());
+      }
+    })
+    .then(data => index = data)
+    .catch(() => {
+      // Fallback to uncompressed
+      fetch('search-index.json').then(r => r.json()).then(data => index = data).catch(() => {});
+    });
+  
   let timer = null;
   input.addEventListener('input', () => {
     clearTimeout(timer);
