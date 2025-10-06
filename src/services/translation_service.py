@@ -183,7 +183,6 @@ class TranslationService:
             List of translated paragraphs
         """
         model = model or self.model
-<<<<<<< HEAD
         glossary_eff = self.glossary if glossary_override is None else glossary_override
         # Optional batching to reduce API calls; disabled by default
         batch_enabled = (
@@ -208,12 +207,6 @@ class TranslationService:
                     out.append(self.translate_field(p, model, dry_run, glossary_override=glossary_eff))
             else:
                 out.extend(parts)
-=======
-        glossary_eff = glossary_override if glossary_override is not None else self.glossary
-        out: List[str] = []
-        for p in paragraphs:
-            out.append(self.translate_field(p, model, dry_run, glossary_override=glossary_eff))
->>>>>>> origin/main
         return out
     
     def translate_record(
