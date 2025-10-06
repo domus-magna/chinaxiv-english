@@ -101,6 +101,8 @@ def process_records(records_path: str, limit: Optional[int] = None) -> List[Dict
     seen = read_seen()
     processed: List[Dict[str, Any]] = []
     count = 0
+    batch_write_every = 10
+    processed_since_flush = 0
     for rec in records:
         if limit and count >= limit:
             break
@@ -146,6 +148,10 @@ def process_records(records_path: str, limit: Optional[int] = None) -> List[Dict
         count += 1
         # Mark seen immediately to avoid reprocessing
         seen.setdefault("ids", []).append(rid)
+        processed_since_flush += 1
+        if processed_since_flush >= batch_write_every:
+            write_seen(seen)
+            processed_since_flush = 0
     write_seen(seen)
     return processed
 
