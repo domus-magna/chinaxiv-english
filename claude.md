@@ -90,7 +90,7 @@ python -m src.translate --dry-run
 python -m src.render && python -m src.search_index
 
 # Preview site locally
-python -m http.server -d site 8000
+python -m http.server -d site 8001
 ```
 
 #### Full Pipeline Test
@@ -163,13 +163,38 @@ Tests run automatically on:
 python -m pytest tests/ --cov=src --cov-report=xml --junitxml=test-results.xml
 ```
 
+### Background Task Management
+
+#### Running Long-Running Tasks
+- **Always run long-running tasks in the background** to avoid blocking the terminal
+- Use `&` to run commands in background: `command &`
+- For interactive sessions, use `nohup` for persistent background tasks: `nohup command &`
+- Monitor background jobs with `jobs` command
+- Bring background jobs to foreground with `fg`
+
+#### Examples
+```bash
+# Formatting samples (can take several minutes)
+python -m src.tools.formatting_compare --count 5 &
+
+# Translation pipeline (long-running)
+python -m src.translate &
+
+# Site server (persistent)
+python -m http.server -d site 8001 &
+
+# With nohup for persistent background tasks
+nohup python -m src.translate > translation.log 2>&1 &
+```
+
 ### Troubleshooting
 
 #### Common Issues
 1. **Import Errors**: Ensure virtual environment is activated
 2. **Missing Dependencies**: Run `pip install -r requirements.txt`
 3. **API Key Issues**: Set `OPENROUTER_API_KEY` environment variable
-4. **Port Conflicts**: Use different port for local server (`python -m http.server -d site 8001`)
+4. **Port Conflicts**: Use different port for local server (`python -m http.server -d site 8002`)
+5. **Blocking Tasks**: Always run long-running tasks in background with `&`
 
 #### Test Failures
 1. **Check test output**: Use `-v` flag for verbose output
@@ -192,3 +217,26 @@ python -m pytest tests/ --cov=src --cov-report=xml --junitxml=test-results.xml
 - Check coverage regularly
 - Fix failing tests immediately
 - Use appropriate test flags for different scenarios
+#### OpenRouter API Key Quick Checks
+If you see `OPENROUTER_API_KEY not set` or OpenRouter returns `401 User not found`, verify the environment first:
+
+```bash
+# In your shell
+echo $OPENROUTER_API_KEY
+
+# From Python in the same shell (what the app actually sees)
+python3 -c "import os; print(os.getenv('OPENROUTER_API_KEY'))"
+
+# If empty, either export in shell or use a .env file
+export OPENROUTER_API_KEY=sk-or-...
+
+# Our client auto-loads .env at runtime; ensure you run from repo root
+printf 'OPENROUTER_API_KEY=sk-or-...\n' > .env
+
+# Then retry a command that uses OpenRouter
+python3 -m src.tools.formatting_compare --count 1
+```
+
+Notes:
+- The HTTP client loads `.env` via `openrouter_headers()` each call; if your shell lacks the variable, ensure `.env` exists in repo root or export the key before running.
+- In CI, set `OPENROUTER_API_KEY` in repository secrets and pass it to the workflow environment.

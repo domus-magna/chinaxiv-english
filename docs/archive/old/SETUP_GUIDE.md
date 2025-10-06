@@ -98,7 +98,7 @@ python scripts/monitor.py
 python -m src.pipeline --limit 10
 
 # Serve site locally
-python -m http.server -d site 8000
+python -m http.server -d site 8001
 ```
 
 ### 4. GitHub Actions Workflow

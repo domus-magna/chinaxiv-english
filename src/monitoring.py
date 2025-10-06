@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass
 
-from .utils import log
+from .utils import log, getenv_bool
 
 
 @dataclass
@@ -73,6 +73,19 @@ class MonitoringService:
         self.max_analytics_entries = 10000
         self.max_performance_entries = 5000
         self.retention_days = 30
+        # Feature flag: enable/disable Discord error budget alerts (default: off)
+        self.enable_budget_alerts = getenv_bool("ENABLE_ERROR_BUDGET_ALERTS", False)
+
+        # Error budget tracking (in-memory + persisted snapshot)
+        self.error_counters = {
+            "total": 0,
+            "by_code": {},  # e.g., {"rate_limit": 3, "invalid_api_key": 1}
+            "by_status": {},  # e.g., {429: 5, 500: 1}
+        }
+        self._error_budget_last_alert = None  # snapshot to avoid duplicate alerts
+
+        # Thresholds (can be overridden via config.yaml or env vars)
+        self.error_budget = self._load_error_budget_config()
         
         # Load existing data
         self._load_data()
@@ -97,6 +110,12 @@ class MonitoringService:
             if performance_file.exists():
                 with open(performance_file, "r", encoding="utf-8") as f:
                     self.performance = json.load(f)
+
+            # Load error counters snapshot if present
+            counters_file = self.data_dir / "error_counters.json"
+            if counters_file.exists():
+                with open(counters_file, "r", encoding="utf-8") as f:
+                    self.error_counters = json.load(f)
                     
         except Exception as e:
             log(f"Failed to load monitoring data: {e}")
@@ -118,6 +137,11 @@ class MonitoringService:
             performance_file = self.data_dir / "performance.json"
             with open(performance_file, "w", encoding="utf-8") as f:
                 json.dump(self.performance, f, indent=2, ensure_ascii=False)
+
+            # Save error counters snapshot
+            counters_file = self.data_dir / "error_counters.json"
+            with open(counters_file, "w", encoding="utf-8") as f:
+                json.dump(self.error_counters, f, indent=2, ensure_ascii=False)
                 
         except Exception as e:
             log(f"Failed to save monitoring data: {e}")
@@ -158,6 +182,128 @@ class MonitoringService:
         self._save_data()
         
         return alert_dict
+
+    def _load_error_budget_config(self) -> Dict[str, Any]:
+        """Load error budget thresholds from config.yaml and env vars with sane defaults."""
+        defaults = {
+            "total": int(os.getenv("ERROR_BUDGET_TOTAL", "20")),
+            "per_status": {
+                "429": int(os.getenv("ERROR_BUDGET_429", "10")),
+                "5xx": int(os.getenv("ERROR_BUDGET_5XX", "5")),
+            },
+            "per_code": {
+                "invalid_api_key": int(os.getenv("ERROR_BUDGET_INVALID_KEY", "1")),
+                "payment_required": int(os.getenv("ERROR_BUDGET_PAYMENT_REQUIRED", "1")),
+                "rate_limit": int(os.getenv("ERROR_BUDGET_RATE_LIMIT", "10")),
+            },
+        }
+        try:
+            from .config import get_config
+            cfg = get_config() or {}
+            mon = (cfg.get("monitoring") or {}).get("error_budget") or {}
+            # Merge with defaults
+            merged = defaults
+            if isinstance(mon, dict):
+                if "total" in mon:
+                    merged["total"] = int(mon["total"])  # type: ignore
+                if "per_status" in mon and isinstance(mon["per_status"], dict):
+                    merged["per_status"].update({str(k): int(v) for k, v in mon["per_status"].items()})
+                if "per_code" in mon and isinstance(mon["per_code"], dict):
+                    merged["per_code"].update({str(k): int(v) for k, v in mon["per_code"].items()})
+            return merged
+        except Exception:
+            return defaults
+
+    def record_error(self, *, service: str, message: str, status: Optional[int] = None, code: Optional[str] = None, metadata: Optional[Dict[str, Any]] = None) -> None:
+        """Record an error occurrence for budget tracking and optionally alert if thresholds are exceeded."""
+        # Increment counters
+        self.error_counters["total"] = int(self.error_counters.get("total", 0)) + 1
+        if status is not None:
+            by_status = self.error_counters.get("by_status", {})
+            by_status[str(status)] = int(by_status.get(str(status), 0)) + 1
+            self.error_counters["by_status"] = by_status
+            # Collapsed 5xx bucket
+            if 500 <= status <= 599:
+                by_status["5xx"] = int(by_status.get("5xx", 0)) + 1
+        if code:
+            by_code = self.error_counters.get("by_code", {})
+            by_code[str(code)] = int(by_code.get(str(code), 0)) + 1
+            # Normalize common aliases
+            alias = {
+                "user_not_found": "invalid_api_key",
+                "invalid_api_key": "invalid_api_key",
+                "insufficient_quota": "payment_required",
+                "payment_required": "payment_required",
+                "rate_limited": "rate_limit",
+            }.get(str(code), None)
+            if alias:
+                by_code[alias] = int(by_code.get(alias, 0)) + 1
+            self.error_counters["by_code"] = by_code
+
+        # Save snapshot periodically (best-effort)
+        try:
+            self._save_data()
+        except Exception:
+            pass
+
+        # Check budgets and alert if exceeded (debounced)
+        if self.enable_budget_alerts:
+            self.check_error_budget_and_alert()
+
+    def check_error_budget_and_alert(self) -> None:
+        """Check error counters against thresholds and send a summarized Discord alert once when exceeded."""
+        counters = self.error_counters
+        budget = self.error_budget
+
+        exceeded = []
+        # Total
+        total = counters.get("total", 0)
+        if total and budget.get("total") and total > int(budget["total"]):
+            exceeded.append(("total", total, budget["total"]))
+
+        # Per-status
+        by_status = counters.get("by_status", {}) or {}
+        for key, thresh in (budget.get("per_status", {}) or {}).items():
+            count = int(by_status.get(str(key), 0))
+            if key == "5xx":
+                count = int(by_status.get("5xx", 0))
+            if thresh and count > int(thresh):
+                exceeded.append((f"status {key}", count, thresh))
+
+        # Per-code
+        by_code = counters.get("by_code", {}) or {}
+        for code, thresh in (budget.get("per_code", {}) or {}).items():
+            count = int(by_code.get(str(code), 0))
+            if thresh and count > int(thresh):
+                exceeded.append((f"code {code}", count, thresh))
+
+        if not exceeded:
+            return
+
+        # Debounce: avoid sending the same summary multiple times per process by simple snapshot compare
+        snapshot = json.dumps({"counters": counters, "budget": budget}, sort_keys=True)
+        if self._error_budget_last_alert == snapshot:
+            return
+        self._error_budget_last_alert = snapshot
+
+        # Build message
+        lines = ["Error budget exceeded:"]
+        for name, count, thresh in exceeded:
+            lines.append(f"- {name}: {count} > {thresh}")
+
+        # Create alert with details; include top buckets
+        details = {
+            "total": total,
+            "by_status": {k: v for k, v in sorted(by_status.items(), key=lambda x: (-int(x[1]), x[0]))[:5]},
+            "by_code": {k: v for k, v in sorted(by_code.items(), key=lambda x: (-int(x[1]), x[0]))[:5]},
+        }
+        self.create_alert(
+            "warning",
+            "OpenRouter Error Budget Exceeded",
+            "\n".join(lines),
+            source="monitoring",
+            metadata=details,
+        )
     
     def get_alerts(self, limit: int = 50) -> List[Dict[str, Any]]:
         """Get recent alerts."""

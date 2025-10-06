@@ -135,7 +135,7 @@ run_pipeline() {
 
 # Function to start local server
 start_server() {
-    local port=${1:-8000}
+    local port=${1:-8001}
     print_status "Starting local server on port $port..."
     print_status "Visit: http://localhost:$port"
     print_status "Press Ctrl+C to stop"
@@ -152,7 +152,7 @@ show_help() {
     echo "  deploy         Deploy to Cloudflare Pages"
     echo "  test           Run tests"
     echo "  pipeline [N]   Run translation pipeline (default: 5 papers)"
-    echo "  serve [PORT]   Start local server (default: 8000)"
+    echo "  serve [PORT]   Start local server (default: 8001)"
     echo "  dev            Build and start local server"
     echo "  full           Build, test, pipeline, and deploy"
     echo "  help           Show this help message"
@@ -183,7 +183,7 @@ case "${1:-help}" in
         run_pipeline $limit
         ;;
     "serve")
-        port=${2:-8000}
+        port=${2:-8001}
         start_server $port
         ;;
     "dev")

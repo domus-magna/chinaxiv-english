@@ -1,12 +1,12 @@
 PY?=$(shell command -v python3.11 2>/dev/null || command -v python3 2>/dev/null || echo python)
-PORT?=8000
+PORT?=8001
 VENV=.venv
 VPY=$(VENV)/bin/python
 VPIP=$(VENV)/bin/pip
 DEV_LIMIT?=5
 MODEL?=
 
-.PHONY: setup test lint fmt smoke build serve health clean
+.PHONY: setup test lint fmt smoke build serve health clean samples
 
 setup:
 	$(PY) -m pip install --upgrade pip
@@ -46,6 +46,11 @@ build: smoke
 
 serve:
 	$(PY) -m http.server -d site $(PORT)
+
+samples:
+	@echo "Generating before/after samples into site/samples/ ..."
+	$(PY) -m src.tools.formatting_compare --count 3 || true
+	@echo "Open http://localhost:$(PORT)/samples/ after running 'make serve'"
 
 clean:
 	rm -rf site data
