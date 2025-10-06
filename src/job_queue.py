@@ -131,91 +131,95 @@ class JobQueue:
                         job_file.unlink()
                 except ValueError:
                     continue
-    
-    def get_failed_jobs(self) -> List[Dict]:
-        """Get all failed jobs."""
-        failed_jobs = []
+
+    # --- Added helpers for CLI parity ---
+    def get_recent_completions(self, limit: int = 5) -> List[Dict]:
+        """Return recent completed jobs with metadata sorted by completion time desc."""
+        items: List[Dict] = []
         for job_file in self.jobs_dir.glob("*.json"):
-            with open(job_file, "r") as f:
-                job = json.load(f)
-            
-            if job["status"] == "failed":
-                failed_jobs.append(job)
-        
-        return failed_jobs
-    
-    def get_recent_completions(self, limit: int = 10) -> List[Dict]:
-        """Get recent completed jobs."""
-        completed_jobs = []
+            try:
+                with open(job_file, "r") as f:
+                    job = json.load(f)
+            except Exception:
+                continue
+            if job.get("status") == "completed":
+                items.append(
+                    {
+                        "paper_id": job.get("id"),
+                        "worker_id": job.get("worker_id"),
+                        "completed_at": job.get("completed_at"),
+                    }
+                )
+        # Sort by completed_at desc
+        def _key(j: Dict):
+            try:
+                return datetime.fromisoformat((j.get("completed_at") or ""))
+            except Exception:
+                return datetime.min
+        items.sort(key=_key, reverse=True)
+        return items[:limit]
+
+    def reset_stuck_jobs(self, timeout_minutes: int = 10) -> int:
+        """Reset in-progress jobs that have been running longer than timeout to pending."""
+        cutoff = datetime.now() - timedelta(minutes=timeout_minutes)
+        reset = 0
         for job_file in self.jobs_dir.glob("*.json"):
-            with open(job_file, "r") as f:
-                job = json.load(f)
-            
-            if job["status"] == "completed":
-                completed_jobs.append(job)
-        
-        # Sort by completion time (most recent first)
-        completed_jobs.sort(
-            key=lambda x: x.get("completed_at", ""), 
-            reverse=True
-        )
-        
-        return completed_jobs[:limit]
-    
-    def reset_failed_jobs(self) -> int:
-        """Reset failed jobs to pending status."""
-        reset_count = 0
-        for job_file in self.jobs_dir.glob("*.json"):
-            with open(job_file, "r") as f:
-                job = json.load(f)
-            
-            if job["status"] == "failed":
+            try:
+                with open(job_file, "r") as f:
+                    job = json.load(f)
+            except Exception:
+                continue
+            if job.get("status") != "in_progress":
+                continue
+            started_at = job.get("started_at")
+            try:
+                started_dt = datetime.fromisoformat(started_at) if started_at else None
+            except Exception:
+                started_dt = None
+            if (started_dt is None) or (started_dt < cutoff):
                 job["status"] = "pending"
-                job["attempts"] = 0
-                job["last_error"] = None
-                job["worker_id"] = None
-                job["started_at"] = None
-                
+                # keep attempts and last_error
                 with open(job_file, "w") as f:
                     json.dump(job, f)
-                
-                reset_count += 1
-        
-        return reset_count
-    
-    def reset_stuck_jobs(self, timeout_minutes: int = 10) -> int:
-        """Reset stuck jobs (in_progress for too long) to pending."""
-        cutoff = datetime.now() - timedelta(minutes=timeout_minutes)
-        reset_count = 0
-        
+                reset += 1
+        return reset
+
+    def get_failed_jobs(self) -> List[Dict]:
+        """Return list of failed jobs with attempts and error."""
+        out: List[Dict] = []
         for job_file in self.jobs_dir.glob("*.json"):
-            with open(job_file, "r") as f:
-                job = json.load(f)
-            
-            if job["status"] == "in_progress":
-                try:
-                    started_at = datetime.fromisoformat(job.get("started_at", ""))
-                    if started_at < cutoff:
-                        job["status"] = "pending"
-                        job["worker_id"] = None
-                        job["started_at"] = None
-                        
-                        with open(job_file, "w") as f:
-                            json.dump(job, f)
-                        
-                        reset_count += 1
-                except ValueError:
-                    # Invalid timestamp, reset anyway
-                    job["status"] = "pending"
-                    job["worker_id"] = None
-                    job["started_at"] = None
-                    
-                    with open(job_file, "w") as f:
-                        json.dump(job, f)
-                    
-                    reset_count += 1
-        
-        return reset_count
+            try:
+                with open(job_file, "r") as f:
+                    job = json.load(f)
+            except Exception:
+                continue
+            if job.get("status") == "failed":
+                out.append(
+                    {
+                        "paper_id": job.get("id"),
+                        "attempts": job.get("attempts", 0),
+                        "error": job.get("last_error") or job.get("error"),
+                    }
+                )
+        return out
+
+    def reset_failed_jobs(self) -> int:
+        """Reset failed jobs back to pending. Returns number reset."""
+        reset = 0
+        for job_file in self.jobs_dir.glob("*.json"):
+            try:
+                with open(job_file, "r") as f:
+                    job = json.load(f)
+            except Exception:
+                continue
+            if job.get("status") == "failed":
+                job["status"] = "pending"
+                with open(job_file, "w") as f:
+                    json.dump(job, f)
+                reset += 1
+        return reset
+    
+    # Removed legacy duplicate helpers below in favor of the unified versions above
     
     def get_pending_job_ids(self) -> List[str]:
         """Get all pending job IDs without loading full job data."""
