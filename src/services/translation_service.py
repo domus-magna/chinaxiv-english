@@ -170,9 +170,29 @@ class TranslationService:
             List of translated paragraphs
         """
         model = model or self.model
+        # Optional batching to reduce API calls; disabled by default
+        batch_enabled = (
+            (self.config.get("translation") or {}).get("batch_paragraphs") is True
+        )
+        if not batch_enabled:
+            out: List[str] = []
+            for p in paragraphs:
+                out.append(self.translate_field(p, model, dry_run))
+            return out
+
+        # Batch mode: chunk paragraphs into token-limited groups and join/split
         out: List[str] = []
-        for p in paragraphs:
-            out.append(self.translate_field(p, model, dry_run))
+        SENTINEL = "\n\n⟪PARA_BREAK⟫\n\n"
+        for group in chunk_paragraphs(paragraphs):
+            joined = SENTINEL.join(group)
+            translated = self.translate_field(joined, model, dry_run)
+            parts = [s.strip() for s in translated.split(SENTINEL)]
+            # Ensure we preserve count; if mismatch, fall back to per-paragraph
+            if len(parts) != len(group):
+                for p in group:
+                    out.append(self.translate_field(p, model, dry_run))
+            else:
+                out.extend(parts)
         return out
     
     def translate_record(self, record: Dict[str, Any], dry_run: bool = False, force_full_text: bool = False) -> Dict[str, Any]:
