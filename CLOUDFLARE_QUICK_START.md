@@ -97,10 +97,10 @@ curl -X POST "https://openrouter.ai/api/v1/chat/completions" \
 
 ## 📚 Documentation
 
-- **Complete setup**: `docs/CLOUDFLARE_COMPLETE_SETUP.md`
-- **Custom domain**: `docs/CUSTOM_DOMAIN_SETUP.md`
-- **Parallelization**: `docs/PARALLELIZATION_STRATEGY.md`
-- **Backfill strategy**: `docs/BACKFILL_STRATEGY.md`
+- **Complete setup**: `docs/archive/old/CLOUDFLARE_COMPLETE_SETUP.md`
+- **Custom domain**: `docs/archive/old/CUSTOM_DOMAIN_SETUP.md`
+- **Parallelization**: `docs/archive/old/PARALLELIZATION_STRATEGY.md`
+- **Backfill strategy**: `docs/archive/old/BACKFILL_STRATEGY.md`
 
 ---
 

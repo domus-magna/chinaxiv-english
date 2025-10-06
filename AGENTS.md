@@ -78,10 +78,7 @@
 
 ### GitHub Actions Workflows
 - **Daily Build** (`.github/workflows/build.yml`): Runs at 3 AM UTC, processes 5 papers, deploys to Cloudflare Pages
-- **Daily Build (Wrangler)** (`.github/workflows/build-wrangler.yml`): Same as above but uses Wrangler CLI for deployment
-- **Parallel Backfill** (`.github/workflows/backfill-parallel.yml`): 5 jobs × 20 workers = 100 workers, ~500 papers/hour
-- **Ultra-Parallel Backfill** (`.github/workflows/backfill-ultra-parallel.yml`): 10 jobs × 50 workers = 500 workers, ~2,500 papers/hour
-- **Extreme-Parallel Backfill** (`.github/workflows/backfill-extreme-parallel.yml`): 20 jobs × 100 workers = 2,000 workers, ~10,000 papers/hour
+- **Configurable Backfill** (`.github/workflows/backfill.yml`): Configurable parallel processing via inputs (1-10 jobs, 1-100 workers per job)
 
 ### Required GitHub Secrets
 - `CF_API_TOKEN`: Cloudflare API token with Pages:Edit permission
@@ -136,9 +133,9 @@
 - **Site Issues**: Check build output directory, verify DNS
 
 ### Documentation
-- **Complete Setup Guide**: `docs/CLOUDFLARE_COMPLETE_SETUP.md`
-- **Wrangler CLI Setup**: `docs/WRANGLER_CLI_SETUP.md`
-- **Parallelization Strategy**: `docs/PARALLELIZATION_STRATEGY.md`
-- **Backfill Strategy**: `docs/BACKFILL_STRATEGY.md`
-- **Donation Setup**: `docs/DONATION_SETUP_PLAN.md`
+- **Complete Setup Guide**: `docs/archive/old/CLOUDFLARE_COMPLETE_SETUP.md`
+- **Wrangler CLI Setup**: `docs/archive/old/WRANGLER_CLI_SETUP.md`
+- **Parallelization Strategy**: `docs/archive/old/PARALLELIZATION_STRATEGY.md`
+- **Backfill Strategy**: `docs/archive/old/BACKFILL_STRATEGY.md`
+- **Donation Setup**: `docs/archive/old/DONATION_SETUP_PLAN.md`
 

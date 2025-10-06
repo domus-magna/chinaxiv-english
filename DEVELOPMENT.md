@@ -122,9 +122,7 @@ wrangler pages domain remove chinaxiv-english yourdomain.com
 
 ### Workflows
 - **Daily Build** (`.github/workflows/build.yml`): Automated daily deployment
-- **Parallel Backfill** (`.github/workflows/backfill-parallel.yml`): Batch translation processing
-- **Ultra-Parallel Backfill** (`.github/workflows/backfill-ultra-parallel.yml`): High-volume processing
-- **Extreme-Parallel Backfill** (`.github/workflows/backfill-extreme-parallel.yml`): Maximum throughput
+- **Configurable Backfill** (`.github/workflows/backfill.yml`): Configurable parallel processing via inputs (1-10 jobs, 1-100 workers per job)
 
 ### Required Secrets
 - `CF_API_TOKEN`: Cloudflare API token
