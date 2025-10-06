@@ -113,7 +113,10 @@ def harvest_chinaxiv_metadata(
 
     log(f"Fetching from IA (limit={api_limit}, cursor={cursor[:20] if cursor else 'none'})")
     resp = http_get(url, params=params)
-    data = resp.json()
+    try:
+        data = resp.json()
+    except Exception as e:
+        raise RuntimeError(f"Invalid JSON from IA scrape endpoint: {e}")
 
     items = data.get('items', [])
     log(f"Received {len(items)} items from IA")
