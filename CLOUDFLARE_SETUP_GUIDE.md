@@ -172,8 +172,8 @@ wrangler pages deploy site --project-name chinaxiv-english --dry-run
 ## Support Resources
 
 ### Documentation
-- **Complete Setup**: `docs/CLOUDFLARE_COMPLETE_SETUP.md`
-- **Wrangler CLI**: `docs/WRANGLER_CLI_SETUP.md`
+- **Complete Setup**: `docs/archive/old/CLOUDFLARE_COMPLETE_SETUP.md`
+- **Wrangler CLI**: `docs/archive/old/WRANGLER_CLI_SETUP.md`
 - **Development**: `DEVELOPMENT.md`
 
 ### Tools

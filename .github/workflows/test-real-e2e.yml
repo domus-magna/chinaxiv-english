@@ -65,9 +65,10 @@ jobs:
       if: always()
       run: |
         if [ "${{ job.status }}" == "success" ]; then
-          echo "✅ Real E2E tests passed for ${{ github.event.inputs.test_category }}"
+          MESSAGE="✅ Real E2E tests passed for ${{ github.event.inputs.test_category }}"
         else
-          echo "❌ Real E2E tests failed for ${{ github.event.inputs.test_category }}"
+          MESSAGE="❌ Real E2E tests failed for ${{ github.event.inputs.test_category }}"
         fi
+        curl -H "Content-Type: application/json" -d "{\"content\":\"$MESSAGE\"}" $DISCORD_WEBHOOK_URL
       env:
         DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}

@@ -32,27 +32,75 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
+          set -e
+          echo "🚀 Starting build process..."
+          
           # Harvest from Internet Archive
-          python -m src.harvest_ia --limit ${{ inputs.limit || 5 }} || true
+          echo "📥 Harvesting from Internet Archive..."
+          python -m src.harvest_ia --limit ${{ inputs.limit || 5 }} || {
+            echo "⚠️ Harvest failed, continuing with existing data"
+          }
           
           # Find latest records
+          echo "🔍 Finding latest records..."
           latest=$(ls -1t data/records/ia_*.json 2>/dev/null | head -n1 || echo '')
           if [ -n "$latest" ]; then
-            python -m src.select_and_fetch --records "$latest" --limit ${{ inputs.limit || 5 }} --output data/selected.json || true
+            echo "📋 Processing records from: $latest"
+            python -m src.select_and_fetch --records "$latest" --limit ${{ inputs.limit || 5 }} --output data/selected.json || {
+              echo "⚠️ Record selection failed, using empty selection"
+              echo '[]' > data/selected.json
+            }
           else
+            echo "⚠️ No records found, using empty selection"
             echo '[]' > data/selected.json
           fi
           
           # Translate
-          python -m src.pipeline --limit ${{ inputs.limit || 5 }} || true
+          echo "🌐 Running translation pipeline..."
+          python -m src.pipeline --limit ${{ inputs.limit || 5 }} || {
+            echo "⚠️ Translation failed, continuing with existing translations"
+          }
           
           # Render site
-          python -m src.render
-          python -m src.search_index
-          python -m src.make_pdf || true
+          echo "🎨 Rendering site..."
+          python -m src.render || {
+            echo "❌ Site rendering failed"
+            exit 1
+          }
+          
+          echo "🔍 Building search index..."
+          python -m src.search_index || {
+            echo "❌ Search index failed"
+            exit 1
+          }
+          
+          echo "📄 Generating PDFs..."
+          python -m src.make_pdf || {
+            echo "⚠️ PDF generation failed, continuing without PDFs"
+          }
+          
+          echo "✅ Build completed successfully!"
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
       - name: Deploy to Cloudflare Pages
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
         run: |
-          npm install -g wrangler
-          wrangler pages deploy site --project-name chinaxiv-english
+          set -e
+          echo "🚀 Deploying to Cloudflare Pages..."
+          
+          echo "📦 Installing Wrangler CLI..."
+          npm install -g wrangler || {
+            echo "❌ Failed to install Wrangler"
+            exit 1
+          }
+          
+          echo "🌐 Deploying site..."
+          wrangler pages deploy site --project-name chinaxiv-english || {
+            echo "❌ Deployment failed"
+            exit 1
+          }
+          
+          echo "✅ Deployment completed successfully!"

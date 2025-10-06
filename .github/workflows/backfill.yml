@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        job_id: [1, 2, 3, 4, 5]  # Dynamic based on parallel_jobs input
+        job_id: ${{ fromJSON(format('[1,2,3,4,5,6,7,8,9,10]', inputs.parallel_jobs)) }}
       max-parallel: ${{ inputs.parallel_jobs || 5 }}
     permissions:
       contents: read
@@ -52,4 +52,16 @@ jobs:
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
-          python -m src.batch_translate start --workers ${{ steps.params.outputs.workers_per_job }} --offset ${{ steps.params.outputs.start_offset }} --limit ${{ steps.params.outputs.papers_per_job }}
+          set -e
+          echo "🚀 Starting backfill job ${{ matrix.job_id }}..."
+          echo "📊 Job parameters:"
+          echo "  - Workers: ${{ steps.params.outputs.workers_per_job }}"
+          echo "  - Offset: ${{ steps.params.outputs.start_offset }}"
+          echo "  - Limit: ${{ steps.params.outputs.papers_per_job }}"
+          
+          python -m src.batch_translate start --workers ${{ steps.params.outputs.workers_per_job }} --offset ${{ steps.params.outputs.start_offset }} --limit ${{ steps.params.outputs.papers_per_job }} || {
+            echo "❌ Backfill job ${{ matrix.job_id }} failed"
+            exit 1
+          }
+          
+          echo "✅ Backfill job ${{ matrix.job_id }} completed successfully!"

@@ -18,21 +18,21 @@
 - Good for testing and small batches
 
 ### 2. Parallel Backfill
-**File**: `.github/workflows/backfill-parallel.yml`
+**File**: `.github/workflows/backfill.yml` (parallel_jobs: 5)
 - 20 workers per job
 - 5 parallel jobs
 - **Total**: 100 workers
 - **Recommended for**: Medium batches (100-1000 papers)
 
 ### 3. Ultra-Parallel Backfill
-**File**: `.github/workflows/backfill-ultra-parallel.yml`
+**File**: `.github/workflows/backfill.yml` (parallel_jobs: 10)
 - 50 workers per job
 - 10 parallel jobs
 - **Total**: 500 workers
 - **Recommended for**: Large batches (1000-5000 papers)
 
 ### 4. Extreme-Parallel Backfill
-**File**: `.github/workflows/backfill-extreme-parallel.yml`
+**File**: `.github/workflows/backfill.yml` (parallel_jobs: 10, workers_per_job: 100)
 - 100 workers per job
 - 20 parallel jobs
 - **Total**: 2,000 workers
@@ -56,7 +56,7 @@
 
 ### For Testing (Start Here)
 ```yaml
-# Use: backfill-parallel.yml
+# Use: backfill.yml (parallel_jobs: 5)
 total_papers: 100
 workers_per_job: 20
 parallel_jobs: 5
@@ -65,7 +65,7 @@ parallel_jobs: 5
 
 ### For Production (Recommended)
 ```yaml
-# Use: backfill-ultra-parallel.yml
+# Use: backfill.yml (parallel_jobs: 10)
 total_papers: 5000
 workers_per_job: 50
 parallel_jobs: 10
@@ -74,7 +74,7 @@ parallel_jobs: 10
 
 ### For Maximum Speed (If Needed)
 ```yaml
-# Use: backfill-extreme-parallel.yml
+# Use: backfill.yml (parallel_jobs: 10, workers_per_job: 100)
 total_papers: 10000
 workers_per_job: 100
 parallel_jobs: 20
