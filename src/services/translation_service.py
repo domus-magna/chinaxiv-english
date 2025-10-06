@@ -157,7 +157,13 @@ class TranslationService:
         
         return unmasked
     
-    def translate_paragraphs(self, paragraphs: List[str], model: Optional[str] = None, dry_run: bool = False) -> List[str]:
+    def translate_paragraphs(
+        self,
+        paragraphs: List[str],
+        model: Optional[str] = None,
+        dry_run: bool = False,
+        glossary_override: Optional[List[Dict[str, str]]] = None,
+    ) -> List[str]:
         """
         Translate multiple paragraphs.
         
@@ -170,6 +176,7 @@ class TranslationService:
             List of translated paragraphs
         """
         model = model or self.model
+        glossary_eff = self.glossary if glossary_override is None else glossary_override
         # Optional batching to reduce API calls; disabled by default
         batch_enabled = (
             (self.config.get("translation") or {}).get("batch_paragraphs") is True
@@ -177,7 +184,7 @@ class TranslationService:
         if not batch_enabled:
             out: List[str] = []
             for p in paragraphs:
-                out.append(self.translate_field(p, model, dry_run))
+                out.append(self.translate_field(p, model, dry_run, glossary_override=glossary_eff))
             return out
 
         # Batch mode: chunk paragraphs into token-limited groups and join/split
@@ -185,12 +192,12 @@ class TranslationService:
         SENTINEL = "\n\n⟪PARA_BREAK⟫\n\n"
         for group in chunk_paragraphs(paragraphs):
             joined = SENTINEL.join(group)
-            translated = self.translate_field(joined, model, dry_run)
+            translated = self.translate_field(joined, model, dry_run, glossary_override=glossary_eff)
             parts = [s.strip() for s in translated.split(SENTINEL)]
             # Ensure we preserve count; if mismatch, fall back to per-paragraph
             if len(parts) != len(group):
                 for p in group:
-                    out.append(self.translate_field(p, model, dry_run))
+                    out.append(self.translate_field(p, model, dry_run, glossary_override=glossary_eff))
             else:
                 out.extend(parts)
         return out
