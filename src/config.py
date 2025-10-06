@@ -66,20 +66,22 @@ def load_dotenv(path: str = ".env", *, override: bool = False) -> None:
         _DOTENV_LOADED = True
         return
 
-    with open(path, "r", encoding="utf-8") as f:
-        for line in f:
-            s = line.strip()
-            if not s or s.startswith("#"):
-                continue
-            if "=" not in s:
-                continue
-            k, v = s.split("=", 1)
-            k = k.strip()
-            v = v.strip().strip('"').strip("'")
-            # Apply according to override flag
-            if override or (k not in os.environ):
-                os.environ[k] = v
-    _DOTENV_LOADED = True
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            for line in f:
+                s = line.strip()
+                if not s or s.startswith("#"):
+                    continue
+                if "=" not in s:
+                    continue
+                k, v = s.split("=", 1)
+                k = k.strip()
+                v = v.strip().strip('"').strip("'")
+                # Apply according to override flag
+                if override or (k not in os.environ):
+                    os.environ[k] = v
+    finally:
+        _DOTENV_LOADED = True
 
 
 def getenv_bool(key: str, default: bool = False) -> bool:
