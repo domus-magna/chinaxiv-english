@@ -133,9 +133,9 @@ def start_workers(num_workers: int) -> None:
     log(f"Processing complete: {completed}/{len(pending_ids)} completed, {failed} failed")
     
     if failed > 0:
-        alert_warning(f"Processing completed with {failed} failures")
+        alert_warning("Processing Completed with Failures", f"Processing completed with {failed} failures")
     else:
-        alert_info("Processing completed successfully")
+        alert_info("Processing Completed Successfully", "Processing completed successfully")
 
 
 def stop_workers() -> None:
