@@ -3,7 +3,7 @@ Streaming processing for papers to reduce memory usage.
 """
 
 from typing import Dict, List, Generator
-from .translation import translation_service
+from .services.translation_service import TranslationService
 from .utils import log
 
 
@@ -47,11 +47,12 @@ def load_paper(paper_id: str) -> Dict:
 
 def translate_paper(paper: Dict) -> Dict:
     """Translate a paper."""
+    svc = TranslationService()
     return {
         "id": paper["id"],
-        "title_en": translation_service.translate_text(paper.get("title", "")),
-        "abstract_en": translation_service.translate_text(paper.get("abstract", "")),
-        "body_en": [translation_service.translate_text(p) for p in paper.get("body", [])]
+        "title_en": svc.translate_field(paper.get("title", ""), dry_run=False),
+        "abstract_en": svc.translate_field(paper.get("abstract", ""), dry_run=False),
+        "body_en": [svc.translate_field(p, dry_run=False) for p in paper.get("body", [])]
     }
 
 
