@@ -19,8 +19,9 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from .monitoring import monitoring_service
 
 # Configuration
-MONITORING_USERNAME = os.getenv("MONITORING_USERNAME", "admin")
-MONITORING_PASSWORD = os.getenv("MONITORING_PASSWORD", "chinaxiv2024")
+MONITORING_USERNAME = os.getenv("MONITORING_USERNAME")
+MONITORING_PASSWORD = os.getenv("MONITORING_PASSWORD")
+MONITORING_PASSWORD_HASH = os.getenv("MONITORING_PASSWORD_HASH")
 MONITORING_PORT = int(os.getenv("MONITORING_PORT", "5000"))
 SECRET_KEY = os.getenv("SECRET_KEY", "chinaxiv-monitoring-secret-key-change-in-production")
 
@@ -91,11 +92,23 @@ class MonitoringDashboard:
         @self.app.route('/login', methods=['GET', 'POST'])
         def login():
             """Login page."""
+            # Require credentials to be configured via environment
+            if not MONITORING_USERNAME or not (MONITORING_PASSWORD or MONITORING_PASSWORD_HASH):
+                return render_template_string(self.get_login_template(), error="Monitoring credentials not configured. Set MONITORING_USERNAME and MONITORING_PASSWORD or MONITORING_PASSWORD_HASH.")
+
             if request.method == 'POST':
                 username = request.form.get('username')
                 password = request.form.get('password')
-                
-                if username == MONITORING_USERNAME and password == MONITORING_PASSWORD:
+                ok = False
+                if MONITORING_PASSWORD_HASH:
+                    try:
+                        ok = (username == MONITORING_USERNAME) and check_password_hash(MONITORING_PASSWORD_HASH, password)
+                    except Exception:
+                        ok = False
+                else:
+                    ok = (username == MONITORING_USERNAME) and (password == MONITORING_PASSWORD)
+
+                if ok:
                     response = Response(render_template_string(self.get_login_success_template()))
                     response.set_cookie('auth_token', 'authenticated', max_age=3600)
                     return response
