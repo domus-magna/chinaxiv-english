@@ -1,0 +1,55 @@
+name: backfill-translations
+
+on:
+  workflow_dispatch:
+    inputs:
+      total_papers:
+        description: 'Total number of papers to process'
+        required: false
+        default: '1000'
+      workers_per_job:
+        description: 'Workers per parallel job'
+        required: false
+        default: '20'
+      parallel_jobs:
+        description: 'Number of parallel jobs'
+        required: false
+        default: '5'
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        job_id: [1, 2, 3, 4, 5]  # Dynamic based on parallel_jobs input
+      max-parallel: ${{ inputs.parallel_jobs || 5 }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Calculate job parameters
+        id: params
+        run: |
+          TOTAL_PAPERS=${{ inputs.total_papers || 1000 }}
+          WORKERS_PER_JOB=${{ inputs.workers_per_job || 20 }}
+          PARALLEL_JOBS=${{ inputs.parallel_jobs || 5 }}
+          
+          PAPERS_PER_JOB=$((TOTAL_PAPERS / PARALLEL_JOBS))
+          START_OFFSET=$(((${{ matrix.job_id }} - 1) * PAPERS_PER_JOB))
+          
+          echo "papers_per_job=$PAPERS_PER_JOB" >> $GITHUB_OUTPUT
+          echo "start_offset=$START_OFFSET" >> $GITHUB_OUTPUT
+          echo "workers_per_job=$WORKERS_PER_JOB" >> $GITHUB_OUTPUT
+      - name: Run backfill
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          python -m src.batch_translate start --workers ${{ steps.params.outputs.workers_per_job }} --offset ${{ steps.params.outputs.start_offset }} --limit ${{ steps.params.outputs.papers_per_job }}

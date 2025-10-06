@@ -3,6 +3,7 @@ CLI controller for batch translation system.
 """
 
 import argparse
+import json
 import os
 import signal
 import subprocess
@@ -12,8 +13,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import List
 
-from . import job_queue
+from .job_queue import job_queue
+from .streaming import process_papers_streaming
 from .utils import log
+from .monitoring import alert_info, alert_warning, alert_error, alert_critical
 
 
 def harvest_papers(years: List[str]) -> List[str]:
@@ -56,8 +59,7 @@ def harvest_papers(years: List[str]) -> List[str]:
 
 def init_queue(years: List[str], limit: int = None, use_harvested: bool = False) -> None:
     """Initialize job queue with papers."""
-    # Init schema
-    job_queue.init_schema()
+    # Job queue is file-based, no schema initialization needed
 
     # Load papers from harvested records or harvest fresh
     if use_harvested:
@@ -89,29 +91,51 @@ def init_queue(years: List[str], limit: int = None, use_harvested: bool = False)
 
 
 def start_workers(num_workers: int) -> None:
-    """Start background worker processes."""
-    log(f"Starting {num_workers} workers...")
-
-    # Prepare clean environment - remove bad OPENROUTER_API_KEY
-    env = os.environ.copy()
-    if 'OPENROUTER_API_KEY' in env:
-        del env['OPENROUTER_API_KEY']
-
-    pids = []
-    for i in range(num_workers):
-        # Spawn worker process with clean env
-        proc = subprocess.Popen(
-            [sys.executable, "-m", "src.worker", str(i)],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            start_new_session=True,  # Detach from parent
-            env=env  # Use clean environment
-        )
-
-        pids.append(proc.pid)
-        time.sleep(0.1)  # Small delay between spawns
-
-    log(f"Started {num_workers} workers (PIDs: {min(pids)}-{max(pids)})")
+    """Process jobs using streaming to reduce memory usage."""
+    log(f"Processing jobs using streaming (workers={num_workers} for compatibility)...")
+    
+    # Get pending jobs
+    stats = job_queue.get_stats()
+    if stats['pending'] == 0:
+        log("No pending jobs to process")
+        return
+    
+    log(f"Processing {stats['pending']} pending jobs...")
+    
+    # Get all pending paper IDs
+    pending_ids = []
+    for job_file in Path("data/jobs").glob("*.json"):
+        with open(job_file, "r") as f:
+            job = json.load(f)
+        if job["status"] == "pending":
+            pending_ids.append(job["id"])
+    
+    # Process papers one at a time
+    completed = 0
+    failed = 0
+    
+    try:
+        for result in process_papers_streaming(pending_ids):
+            if result["status"] == "completed":
+                completed += 1
+                job_queue.complete_job(result["id"])
+            else:
+                failed += 1
+                job_queue.fail_job(result["id"], result.get("error", "Unknown error"))
+            
+            if (completed + failed) % 10 == 0:
+                log(f"Progress: {completed + failed}/{len(pending_ids)} processed")
+                
+    except KeyboardInterrupt:
+        log("Interrupted by user")
+    
+    # Final stats
+    log(f"Processing complete: {completed}/{len(pending_ids)} completed, {failed} failed")
+    
+    if failed > 0:
+        alert_warning(f"Processing completed with {failed} failures")
+    else:
+        alert_info("Processing completed successfully")
 
 
 def stop_workers() -> None:
@@ -143,6 +167,15 @@ def stop_workers() -> None:
 
     # Wait for graceful shutdown
     time.sleep(2)
+    
+    # Send alert about worker shutdown
+    if pid_files:
+        alert_warning(
+            "Workers Stopped",
+            f"Stopped {len(pid_files)} translation workers",
+            source="batch_translate",
+            metadata={"stopped_count": len(pid_files)}
+        )
 
     # Check if any still running
     for pid_file in list(pid_dir.glob("*.pid")):
@@ -176,9 +209,6 @@ def show_status() -> None:
     print(f"In Progress:    {stats['in_progress']:,}")
     print(f"Pending:        {stats['pending']:,}")
     print(f"Failed:         {stats['failed']:,}")
-    print()
-    print(f"QA Evaluations: {stats['qa_completed']:,}")
-    print(f"QA Avg Score:   {stats['qa_avg_score']:.1f}/10" if stats['qa_completed'] > 0 else "QA Avg Score:   N/A")
     print()
 
     # Active workers
@@ -261,6 +291,22 @@ def show_failed() -> None:
         print(f"Error: {job['error'][:100]}...")
 
 
+def retry_failed(num_workers: int) -> None:
+    """Retry failed jobs - reset to pending and start workers."""
+    log("Resetting failed jobs to pending...")
+
+    reset_count = job_queue.reset_failed_jobs()
+
+    log(f"Reset {reset_count} failed jobs to pending")
+
+    # Start workers if there are jobs to retry
+    if reset_count > 0:
+        log(f"Starting {num_workers} workers to retry failed jobs...")
+        start_workers(num_workers)
+    else:
+        log("No failed jobs to retry")
+
+
 def run_cli() -> None:
     """CLI entry point."""
     parser = argparse.ArgumentParser(description="Batch translation system")
@@ -291,6 +337,10 @@ def run_cli() -> None:
     # Failed command
     subparsers.add_parser('failed', help='Show failed jobs')
 
+    # Retry command
+    retry_parser = subparsers.add_parser('retry', help='Retry failed jobs')
+    retry_parser.add_argument('--workers', type=int, default=10, help='Number of workers')
+
     args = parser.parse_args()
 
     # Execute command
@@ -315,6 +365,9 @@ def run_cli() -> None:
 
     elif args.command == 'failed':
         show_failed()
+
+    elif args.command == 'retry':
+        retry_failed(args.workers)
 
 
 if __name__ == "__main__":

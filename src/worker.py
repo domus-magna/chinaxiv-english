@@ -11,6 +11,7 @@ from pathlib import Path
 
 from . import job_queue
 from .utils import log
+from .config import load_dotenv
 
 
 class BackgroundWorker:
@@ -90,6 +91,9 @@ class BackgroundWorker:
 
     def run(self) -> None:
         """Main worker loop."""
+        # Load environment variables from .env (override existing)
+        load_dotenv(override=True)
+        
         # Setup
         self.write_pid_file()
 
