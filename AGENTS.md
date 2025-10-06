@@ -139,3 +139,54 @@
 - **Backfill Strategy**: `docs/archive/old/BACKFILL_STRATEGY.md`
 - **Donation Setup**: `docs/archive/old/DONATION_SETUP_PLAN.md`
 
+## Pull Request Review Guidelines
+
+### Checking All Review Types
+When reviewing pull requests, **ALWAYS check for ALL types of reviews and comments**:
+
+1. **Regular Comments**: `gh pr view --comments` or `gh pr view --json comments`
+2. **Review Summaries**: `gh pr view --json reviews` 
+3. **Inline Review Comments**: `gh api repos/{owner}/{repo}/pulls/{number}/comments`
+
+### Critical Review Sources
+- **mentatbot**: Human-style reviews with detailed analysis
+- **chatgpt-codex-connector[bot]**: Codex automated reviews with inline suggestions
+- **cursor[bot]**: Cursor IDE automated reviews
+- **Manual reviews**: From human contributors
+
+### Review Priority Levels
+- **P1 (Critical)**: Fix before merging - causes runtime errors or data corruption
+- **Medium**: Significant issues that should be addressed
+- **Low**: Minor improvements or style issues
+
+### Common Review Issues
+- **Workflow issues**: Hardcoded values, missing setup steps, broken notifications
+- **Documentation**: Incorrect paths, references to non-existent files
+- **Code quality**: Race conditions, memory issues, API mismatches
+- **Security**: Hardcoded secrets, missing validation
+
+### Review Response Process
+1. **Check all review types** using the commands above
+2. **Prioritize P1 issues** - fix critical problems first
+3. **Address documentation issues** - update paths and references
+4. **Test fixes** - validate changes work correctly
+5. **Add detailed PR comments** explaining what was fixed
+6. **Push fixes** and notify reviewers
+
+### GitHub CLI Commands for Reviews
+```bash
+# Check regular comments
+gh pr view --comments
+
+# Check review summaries  
+gh pr view --json reviews
+
+# Check inline review comments (CRITICAL - often missed!)
+gh api repos/seconds-0/chinaxiv-english/pulls/{number}/comments
+
+# Get all review data
+gh pr view --json comments,reviews
+```
+
+**Remember**: Inline review comments are separate from regular comments and require the specific API endpoint to access!
+
