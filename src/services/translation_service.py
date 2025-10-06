@@ -10,7 +10,8 @@ import requests
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from ..config import get_config, get_proxies
-from ..http_client import openrouter_headers
+from ..http_client import openrouter_headers, parse_openrouter_error
+from ..monitoring import monitoring_service, alert_critical
 from ..tex_guard import mask_math, unmask_math, verify_token_parity
 from ..body_extract import extract_body_paragraphs
 from ..token_utils import chunk_paragraphs
@@ -29,6 +30,11 @@ SYSTEM_PROMPT = (
     "4. Use precise technical terminology - obey the glossary strictly\n"
     "5. Preserve section structure and paragraph organization\n"
     "6. Translate all content completely - do not omit any information\n\n"
+    "OUTPUT RULES:\n"
+    "- Return ONLY the translated text for the given input (no explanations, no quotes, no headings you invent).\n"
+    "- Keep one output paragraph per input paragraph; do not merge or split.\n"
+    "- Do NOT add Markdown formatting unless it is present in the source.\n"
+    "- Preserve original line breaks within the paragraph when meaningful; otherwise use standard English sentence spacing.\n\n"
     "FORMATTING GUIDELINES:\n"
     "- Keep mathematical expressions in their original LaTeX format\n"
     "- Preserve equation numbers and references\n"
@@ -39,8 +45,24 @@ SYSTEM_PROMPT = (
 
 
 class OpenRouterError(Exception):
-    """OpenRouter API error."""
-    pass
+    """OpenRouter API error (non-retryable by default)."""
+    def __init__(self, message: str, *, code: Optional[str] = None, retryable: bool = False, fallback_ok: bool = True) -> None:
+        super().__init__(message)
+        self.code = code
+        self.retryable = retryable
+        self.fallback_ok = fallback_ok
+
+
+class OpenRouterRetryableError(OpenRouterError):
+    """Retryable OpenRouter API error (e.g., 429, 5xx, transient network)."""
+    def __init__(self, message: str, *, code: Optional[str] = None, fallback_ok: bool = True) -> None:
+        super().__init__(message, code=code, retryable=True, fallback_ok=fallback_ok)
+
+
+class OpenRouterFatalError(OpenRouterError):
+    """Fatal OpenRouter API error (e.g., invalid key, insufficient funds)."""
+    def __init__(self, message: str, *, code: Optional[str] = None, fallback_ok: bool = False) -> None:
+        super().__init__(message, code=code, retryable=False, fallback_ok=fallback_ok)
 
 
 class TranslationValidationError(Exception):
@@ -70,7 +92,7 @@ class TranslationService:
     @retry(
         wait=wait_exponential(min=1, max=20), 
         stop=stop_after_attempt(5), 
-        retry=retry_if_exception_type(OpenRouterError)
+        retry=retry_if_exception_type(OpenRouterRetryableError)
     )
     def _call_openrouter(self, text: str, model: str, glossary: List[Dict[str, str]]) -> str:
         """
@@ -110,11 +132,46 @@ class TranslationService:
                 kwargs["proxies"] = proxies
             resp = requests.post("https://openrouter.ai/api/v1/chat/completions", **kwargs)
         except requests.RequestException as e:
-            raise OpenRouterError(str(e))
-        
+            # Record network error
+            try:
+                monitoring_service.record_error(service="openrouter", message=str(e), status=None, code="network_error", metadata={"model": model})
+            except Exception:
+                pass
+            raise OpenRouterRetryableError(f"Network error: {e}", code="network_error")
+
         if not resp.ok:
-            raise OpenRouterError(f"OpenRouter error {resp.status_code}: {resp.text[:200]}")
-        
+            info = parse_openrouter_error(resp)
+            status = info["status"]
+            code = info["code"]
+            message = info["message"] or f"OpenRouter error {status}"
+            # Record error for budget tracking
+            try:
+                monitoring_service.record_error(
+                    service="openrouter",
+                    message=message,
+                    status=status,
+                    code=code or None,
+                    metadata={"model": model},
+                )
+            except Exception:
+                pass
+            if info["retryable"]:
+                raise OpenRouterRetryableError(f"{message}", code=code, fallback_ok=info["fallback_ok"])
+            # fatal or non-retryable – decide if fallback to alternate models makes sense
+            if not info["fallback_ok"]:
+                # Immediate critical alert for fatal auth/payment
+                try:
+                    alert_critical(
+                        "OpenRouter Fatal Error",
+                        message,
+                        source="translation_service",
+                        metadata={"status": status, "code": code or "unknown", "model": model}
+                    )
+                except Exception:
+                    pass
+                raise OpenRouterFatalError(message, code=code, fallback_ok=False)
+            raise OpenRouterError(message, code=code, retryable=False, fallback_ok=True)
+
         data = resp.json()
         try:
             return data["choices"][0]["message"]["content"].strip()
@@ -324,9 +381,18 @@ class TranslationService:
         # Translate (always translate full text - we don't care about licenses)
         tr = self.translate_record(rec, dry_run=dry_run, force_full_text=True)
         
-        # Apply formatting/prettification
+        # Apply formatting/prettification (heuristic baseline)
         from ..format_translation import format_translation
         tr = format_translation(tr)
+
+        # Optional: LLM or heuristic Markdown formatting pass
+        try:
+            from .formatting_service import FormattingService
+            fmt_service = FormattingService(self.config)
+            tr = fmt_service.format_translation(tr, dry_run=dry_run)
+        except Exception as e:
+            # Non-fatal: fallback to existing formatted fields
+            log(f"Formatting service error (non-fatal): {e}")
         
         # Save
         out_dir = os.path.join("data", "translated")
@@ -404,7 +470,10 @@ class TranslationService:
             except OpenRouterError as e:
                 last_error = e
                 log(f"Model {model_to_try} failed: {e}")
+                # If the failure cannot be fixed by switching models, stop early
+                if isinstance(e, OpenRouterFatalError) and not getattr(e, "fallback_ok", True):
+                    break
                 continue
-        
+
         # All models failed
         raise OpenRouterError(f"All translation models failed. Last error: {last_error}")

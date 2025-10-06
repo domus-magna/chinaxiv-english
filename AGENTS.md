@@ -14,9 +14,20 @@
   - Harvest: `python -m src.harvest_ia --limit 10` (or `--all` for full harvest)
   - Translate: `python -m src.translate --dry-run`
   - Render + index: `python -m src.render && python -m src.search_index`
-- Preview site: `python -m http.server -d site 8000`
+- Preview site: `python -m http.server -d site 8001`
 - CI: Nightly GitHub Actions builds and deploys `site/` to Pages (see PRD).
 - Note: `src/harvest_oai.py` is deprecated (ChinaXiv OAI-PMH blocked); use `src/harvest_ia.py` instead.
+
+### Background Task Guidelines
+- **Always run long-running tasks in the background** to avoid blocking the terminal
+- Use `&` to run commands in background: `command &`
+- For interactive sessions, use `nohup` for persistent background tasks: `nohup command &`
+- Monitor background jobs with `jobs` command
+- Bring background jobs to foreground with `fg`
+- Examples:
+  - Formatting samples: `python -m src.tools.formatting_compare --count 5 &`
+  - Translation pipeline: `python -m src.translate &`
+  - Site server: `python -m http.server -d site 8001 &`
 
 ## Coding Style & Naming Conventions
 - Python 3.11+, 4-space indent, PEP 8 + type hints.
@@ -49,6 +60,18 @@
 - Config: `src/config.yaml` defines Internet Archive endpoints, model slugs, glossary, license mappings.
 - Data hygiene: limit `data/raw_xml/` retention; avoid large diffs in VCS.
 - Note: `BRIGHTDATA_API_KEY` is in `.env` but not needed for IA approach (kept for potential future use).
+
+### LLM API Key Troubleshooting (Agents)
+- Symptoms:
+  - `OPENROUTER_API_KEY not set` raised by code, or OpenRouter `401 User not found` in responses.
+- Always verify environment variables when you see these errors:
+  - Shell: `echo $OPENROUTER_API_KEY` should print a non-empty value.
+  - Python (within the same shell): `python3 -c "import os; print(os.getenv('OPENROUTER_API_KEY'))"`.
+  - If empty, load `.env` or export the key: `export OPENROUTER_API_KEY=...`.
+  - Our client auto-loads `.env` via `openrouter_headers()`; ensure you are running from repo root where `.env` resides.
+- CI/GitHub Actions:
+  - Confirm `OPENROUTER_API_KEY` secret is configured and passed to the job environment.
+- If using a proxy or different shells/terminals, make sure the key is present in the active session before running any `src.translate` or `src.tools.formatting_compare` commands.
 
 ## Data Source: Internet Archive (NOT ChinaXiv OAI-PMH)
 - **Issue**: ChinaXiv OAI-PMH endpoint (`https://chinaxiv.org/oai/OAIHandler`) returns "Sorry!You have no right to access this web" - hard-blocked at application level.
@@ -189,4 +212,3 @@ gh pr view --json comments,reviews
 ```
 
 **Remember**: Inline review comments are separate from regular comments and require the specific API endpoint to access!
-

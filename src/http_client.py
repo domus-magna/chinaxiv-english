@@ -4,7 +4,7 @@ Optimized HTTP client with connection pooling for ChinaXiv English translation.
 from __future__ import annotations
 
 import os
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Dict, Any
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -132,6 +132,95 @@ def openrouter_headers() -> dict:
         "X-Title": "chinaxiv-english",
     }
 
+
+def parse_openrouter_error(resp: requests.Response) -> Dict[str, Any]:
+    """
+    Parse an OpenRouter error response into a structured shape.
+
+    Returns a dict with keys:
+      - status: HTTP status code
+      - code: provider error code if available
+      - message: human-readable error message
+      - retry_after: seconds from Retry-After header (int | None)
+      - retryable: whether the error is transient and should be retried
+      - fallback_ok: whether trying an alternate model could help
+    """
+    status = resp.status_code
+    code: Optional[str] = None
+    message: Optional[str] = None
+    try:
+        data = resp.json()
+    except Exception:
+        data = None
+
+    if isinstance(data, dict):
+        err = data.get("error") or {}
+        if isinstance(err, dict):
+            code = (err.get("code") or err.get("type") or code)
+            message = (err.get("message") or data.get("message") or message)
+        else:
+            # Some providers return an errors list
+            errors = data.get("errors") or []
+            if isinstance(errors, list) and errors:
+                first = errors[0]
+                if isinstance(first, dict):
+                    code = (first.get("code") or first.get("type") or code)
+                    message = (first.get("message") or message)
+
+    if not message:
+        # Fallback to raw body text
+        try:
+            message = (resp.text or "").strip()
+        except Exception:
+            message = f"HTTP {status}"
+    # Trim excessive payload
+    if message and len(message) > 500:
+        message = message[:500] + "…"
+
+    # Retry-After header
+    retry_after_hdr = resp.headers.get("Retry-After") or resp.headers.get("retry-after")
+    try:
+        retry_after = int(retry_after_hdr) if retry_after_hdr else None
+    except Exception:
+        retry_after = None
+
+    # Heuristic classification
+    msg_lc = (message or "").lower()
+    retryable = False
+    fallback_ok = True
+
+    if status == 429:
+        retryable = True
+    elif status >= 500:
+        retryable = True
+    elif status == 401:
+        # Auth-related; usually not fixed by retry or model fallback
+        if code in {"invalid_api_key", "user_not_found"} or "user not found" in msg_lc or ("invalid" in msg_lc and "key" in msg_lc):
+            fallback_ok = False
+        elif any(w in msg_lc for w in ("insufficient", "balance", "credit")):
+            fallback_ok = False
+    elif status == 402:
+        # Payment required / insufficient funds
+        fallback_ok = False
+    elif status == 403:
+        # Access forbidden; could be model-specific restriction
+        fallback_ok = True
+    elif status == 400:
+        # Bad request — likely model slug or request shape; trying alternates may help
+        fallback_ok = True
+
+    # Known fatal codes regardless of HTTP status
+    if code in {"invalid_api_key", "user_not_found", "insufficient_quota", "payment_required"}:
+        fallback_ok = False
+
+    return {
+        "status": status,
+        "code": code,
+        "message": message,
+        "retry_after": retry_after,
+        "retryable": retryable,
+        "fallback_ok": fallback_ok,
+    }
 
 def close_session():
     """Close the global session."""

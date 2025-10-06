@@ -44,7 +44,7 @@ Purpose: validate plumbing with zero API cost.
 - `ls -la site/search-index.json`
 
 3) Verify behavior
-- Open local preview: `make serve` (http://localhost:8000)
+- Open local preview: `make serve` (http://localhost:8001)
 - Confirm: item page shows title + abstract; MathJax renders math; footer shows source + license badge.
 - Search bar returns matches against the small index.
 
@@ -148,7 +148,7 @@ Purpose: nightly live runs and deploy to a real domain.
 
 ## H. Troubleshooting
 - Key not picked up: ensure `.env` exists at repo root; line is `OPENROUTER_API_KEY=...`; no quotes. Health: `python -m src.health`.
-- Port busy: `make serve PORT=8001` or `lsof -i :8000 && kill -9 <PID>`.
+- Port busy: `make serve PORT=8001` or `lsof -i :8001 && kill -9 <PID>`.
 - No harvested records: use backfill window (section C), or rely on seed record behavior in `make dev`.
 - Pandoc not installed: PDF generation logs a warning and continues; optional in V1.
 

@@ -5,7 +5,7 @@ This document describes the API endpoints and functionality available in the Chi
 
 ## Base URL
 - **Production**: `https://chinaxiv-english.pages.dev`
-- **Local Development**: `http://localhost:8000`
+- **Local Development**: `http://localhost:8001`
 
 ## Authentication
 Most endpoints are public. The monitoring dashboard requires authentication:

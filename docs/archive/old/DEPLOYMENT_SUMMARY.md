@@ -104,7 +104,7 @@ export OPENROUTER_API_KEY=your_key_here
 ./scripts/deploy.sh
 
 # Serve site locally
-python -m http.server -d site 8000
+python -m http.server -d site 8001
 ```
 
 ### CI/CD

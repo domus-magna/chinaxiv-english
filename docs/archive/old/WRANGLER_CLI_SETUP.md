@@ -128,7 +128,7 @@ Use the new workflow file: `.github/workflows/build-wrangler.yml`
 ### 1. Preview Site Locally
 ```bash
 # Serve site locally
-python -m http.server -d site 8000
+python -m http.server -d site 8001
 
 # Or use Wrangler for local development
 wrangler pages dev site --project-name chinaxiv-english
@@ -279,7 +279,7 @@ python -m src.render
 python -m src.search_index
 
 # 2. Test locally
-python -m http.server -d site 8000
+python -m http.server -d site 8001
 
 # 3. Deploy to Pages
 wrangler pages deploy site --project-name chinaxiv-english

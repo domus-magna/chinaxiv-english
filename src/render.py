@@ -66,23 +66,33 @@ def render_site(items: List[Dict[str, Any]]) -> None:
         out_dir = os.path.join(base_out, "items", it["id"])
         ensure_dir(out_dir)
 
-        # Generate formatted markdown for body
-        if it.get('body_en'):
+        # Choose best-available body markdown for preview
+        if it.get('body_md'):
+            it['formatted_body_md'] = it['body_md']
+        elif it.get('body_en'):
             it['formatted_body_md'] = format_translation_to_markdown(it)
 
         html = tmpl_item.render(item=it, root="../..")
         write_text(os.path.join(out_dir, "index.html"), html)
-        # Markdown export
+        # Markdown export (prefer formatted body/abstract if present)
+        abstract_md = it.get('abstract_md') or (it.get('abstract_en') or '')
+        if it.get('body_md'):
+            full_body_md = it['body_md']
+        elif it.get('body_en'):
+            # fallback: derive from heuristics
+            full_body_md = format_translation_to_markdown(it)
+        else:
+            full_body_md = ''
+
         md_parts = [
             f"# {it.get('title_en') or ''}",
             f"**Authors:** {', '.join(it.get('creators') or [])}",
             f"**Date:** {it.get('date') or ''}",
-            f"## Abstract\n\n{it.get('abstract_en') or ''}",
+            f"## Abstract\n\n{abstract_md}",
         ]
-        if it.get("body_en"):
-            md_parts.append("## Body\n")
-            for p in it["body_en"]:
-                md_parts.append(p)
+        if full_body_md:
+            md_parts.append("## Full Text\n")
+            md_parts.append(full_body_md)
         md_parts.append("\n_Source: ChinaXiv — Machine translation. Verify with original._")
         md = "\n\n".join(md_parts) + "\n"
         write_text(os.path.join(out_dir, f"{it['id']}.md"), md)
