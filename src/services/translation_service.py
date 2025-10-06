@@ -121,7 +121,13 @@ class TranslationService:
         except Exception as e:
             raise RuntimeError(f"Invalid OpenRouter response: {e}")
     
-    def translate_field(self, text: str, model: Optional[str] = None, dry_run: bool = False) -> str:
+    def translate_field(
+        self,
+        text: str,
+        model: Optional[str] = None,
+        dry_run: bool = False,
+        glossary_override: Optional[List[Dict[str, str]]] = None,
+    ) -> str:
         """
         Translate a single field with math preservation.
         
@@ -140,12 +146,13 @@ class TranslationService:
             return ""
         
         model = model or self.model
+        glossary_eff = glossary_override if glossary_override is not None else self.glossary
         masked, mappings = mask_math(text)
         
         if dry_run:
             translated = masked  # identity to preserve placeholders
         else:
-            translated = self._call_openrouter_with_fallback(masked, model, self.glossary)
+            translated = self._call_openrouter_with_fallback(masked, model, glossary_eff)
         
         if not verify_token_parity(mappings, translated):
             raise MathPreservationError("Math placeholder parity check failed")
@@ -157,7 +164,13 @@ class TranslationService:
         
         return unmasked
     
-    def translate_paragraphs(self, paragraphs: List[str], model: Optional[str] = None, dry_run: bool = False) -> List[str]:
+    def translate_paragraphs(
+        self,
+        paragraphs: List[str],
+        model: Optional[str] = None,
+        dry_run: bool = False,
+        glossary_override: Optional[List[Dict[str, str]]] = None,
+    ) -> List[str]:
         """
         Translate multiple paragraphs.
         
@@ -170,12 +183,19 @@ class TranslationService:
             List of translated paragraphs
         """
         model = model or self.model
+        glossary_eff = glossary_override if glossary_override is not None else self.glossary
         out: List[str] = []
         for p in paragraphs:
-            out.append(self.translate_field(p, model, dry_run))
+            out.append(self.translate_field(p, model, dry_run, glossary_override=glossary_eff))
         return out
     
-    def translate_record(self, record: Dict[str, Any], dry_run: bool = False, force_full_text: bool = False) -> Dict[str, Any]:
+    def translate_record(
+        self,
+        record: Dict[str, Any],
+        dry_run: bool = False,
+        force_full_text: bool = False,
+        glossary_override: Optional[List[Dict[str, str]]] = None,
+    ) -> Dict[str, Any]:
         """
         Translate a complete record.
         
@@ -206,14 +226,14 @@ class TranslationService:
         title_src = paper.title or ""
         abstract_src = paper.abstract or ""
         
-        translation.title_en = self.translate_field(title_src, dry_run=dry_run)
-        translation.abstract_en = self.translate_field(abstract_src, dry_run=dry_run)
+        translation.title_en = self.translate_field(title_src, dry_run=dry_run, glossary_override=glossary_override)
+        translation.abstract_en = self.translate_field(abstract_src, dry_run=dry_run, glossary_override=glossary_override)
         
         # Translate body if allowed
         if allow_full:
             paras = extract_body_paragraphs(record)
             if paras:
-                translation.body_en = self.translate_paragraphs(paras, dry_run=dry_run)
+                translation.body_en = self.translate_paragraphs(paras, dry_run=dry_run, glossary_override=glossary_override)
         
         # Cost tracking (approximate)
         from ..token_utils import estimate_tokens
