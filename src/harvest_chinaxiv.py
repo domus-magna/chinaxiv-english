@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 """
+DEPRECATED: Direct ChinaXiv scraping via BrightData.
+Use Internet Archive harvester in src/harvest_ia.py instead.
+
 Harvest fresh papers from ChinaXiv using BrightData Web Unlocker.
 
 Scrapes papers by sequential ID probing for specified month ranges.

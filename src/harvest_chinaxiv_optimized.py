@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 """
+DEPRECATED: Direct ChinaXiv scraping.
+Use Internet Archive harvester in src/harvest_ia.py instead.
+
 Optimized ChinaXiv harvester with smart ID discovery.
 
 Uses homepage parsing + binary search to find paper ID ranges,
