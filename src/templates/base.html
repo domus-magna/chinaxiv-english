@@ -17,9 +17,26 @@
       <div class="container">
         <a href="{{ root }}/" class="brand">ChinaXiv Translations</a>
         <nav class="nav">
-          <a href="{{ root }}/">Browse</a>
-          <a href="https://www.chinaxiv.org" target="_blank" rel="noopener">Original Site</a>
-          <a href="https://github.com/" target="_blank" rel="noopener">About</a>
+          <div class="nav-section nav-primary">
+            <a href="{{ root }}/" class="nav-primary-link">Recent</a>
+          </div>
+          <div class="nav-section nav-categories">
+            <span class="nav-label">Browse:</span>
+            <a href="{{ root }}/?category=cs">Computer Science</a>
+            <a href="{{ root }}/?category=math">Mathematics</a>
+            <a href="{{ root }}/?category=physics">Physics</a>
+          </div>
+          <div class="nav-section nav-tools">
+            <span class="nav-label">Tools:</span>
+            <a href="{{ root }}/search">Search</a>
+            <a href="{{ root }}/browse">Browse All</a>
+            <a href="{{ root }}/stats">Statistics</a>
+          </div>
+          <div class="nav-section nav-external">
+            <span class="nav-label">Links:</span>
+            <a href="https://www.chinaxiv.org" target="_blank" rel="noopener">Original Site</a>
+            <a href="https://github.com/" target="_blank" rel="noopener">About</a>
+          </div>
         </nav>
       </div>
     </header>
@@ -28,10 +45,32 @@
     </main>
     <footer class="site-footer">
       <div class="container">
-        <p>
-          Translations from <a href="https://www.chinaxiv.org" target="_blank" rel="noopener">ChinaXiv</a>.
-          All content is machine-translated and should be verified with the original source.
-        </p>
+        <div class="footer-content">
+          <div class="footer-section">
+            <h4>Navigation</h4>
+            <div class="footer-links">
+              <a href="./help">Help</a>
+              <a href="./api">API</a>
+              <a href="./stats">Statistics</a>
+              <a href="./contact">Contact</a>
+            </div>
+          </div>
+          <div class="footer-section">
+            <h4>About</h4>
+            <p class="footer-description">
+              Translations from <a href="https://www.chinaxiv.org" target="_blank" rel="noopener">ChinaXiv</a>.
+              All content is machine-translated and should be verified with the original source.
+            </p>
+          </div>
+          <div class="footer-section">
+            <h4>Project</h4>
+            <p class="footer-meta">
+              Last updated: 2025-10-05<br>
+              <a href="https://github.com/seconds-0/chinaxiv-english" target="_blank" rel="noopener">Source Code</a><br>
+              <a href="{{ root }}/donation.html">Support Us</a>
+            </p>
+          </div>
+        </div>
       </div>
     </footer>
     <script src="{{ root }}/assets/site.js"></script>

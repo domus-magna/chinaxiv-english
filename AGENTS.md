@@ -67,3 +67,78 @@
 - **Implementation**: See `docs/INTERNET_ARCHIVE_PLAN.md` for detailed migration plan
 - **Deprecated**: Proxy setup docs (`docs/PROXY_SETUP.md`, `docs/PROXY_REVIEW.md`) archived - not needed for IA approach
 
+## Live Configuration & Deployment
+
+### Current Status
+- **Translation Pipeline**: ✅ Working (fixed API key bug in workers)
+- **GitHub Actions**: ✅ Configured for Cloudflare Pages deployment
+- **Batch Translation**: ✅ Ready for parallel processing
+- **Donation System**: ✅ Crypto donation page implemented
+- **UI Improvements**: ✅ Cleaner navigation and layout
+
+### GitHub Actions Workflows
+- **Daily Build** (`.github/workflows/build.yml`): Runs at 3 AM UTC, processes 5 papers, deploys to Cloudflare Pages
+- **Daily Build (Wrangler)** (`.github/workflows/build-wrangler.yml`): Same as above but uses Wrangler CLI for deployment
+- **Parallel Backfill** (`.github/workflows/backfill-parallel.yml`): 5 jobs × 20 workers = 100 workers, ~500 papers/hour
+- **Ultra-Parallel Backfill** (`.github/workflows/backfill-ultra-parallel.yml`): 10 jobs × 50 workers = 500 workers, ~2,500 papers/hour
+- **Extreme-Parallel Backfill** (`.github/workflows/backfill-extreme-parallel.yml`): 20 jobs × 100 workers = 2,000 workers, ~10,000 papers/hour
+
+### Required GitHub Secrets
+- `CF_API_TOKEN`: Cloudflare API token with Pages:Edit permission
+- `CLOUDFLARE_ACCOUNT_ID`: Cloudflare Account ID
+- `OPENROUTER_API_KEY`: OpenRouter API key for translations
+- `DISCORD_WEBHOOK_URL`: Discord webhook for notifications (optional)
+
+### Cloudflare Pages Configuration
+- **Project Name**: `chinaxiv-english`
+- **Build Output Directory**: `site`
+- **Production Branch**: `main`
+- **Build Command**: (empty - GitHub Actions handles building)
+- **Environment Variables**: `OPENROUTER_API_KEY`, `DISCORD_WEBHOOK_URL`
+
+### Translation System
+- **Model**: DeepSeek V3.2-Exp via OpenRouter
+- **Cost**: ~$0.0013 per paper
+- **Full Backfill Cost**: ~$45 for 34,237 papers
+- **Workers**: Configurable (10-100 per job)
+- **Parallelization**: Up to 20 concurrent jobs
+
+### Donation System
+- **Supported Cryptocurrencies**: BTC, ETH, SOL, USDC, USDT, STX
+- **Donation Page**: `/donation.html`
+- **Integration**: Links in main page and footer
+- **Features**: Click-to-copy addresses, QR codes, mobile-friendly
+
+### Performance Metrics
+- **Current Daily Processing**: 5 papers/day
+- **Parallel Processing**: 100-2,000 papers/hour
+- **Full Backfill Time**: 3.4 hours (extreme parallel) to 14 days (current)
+- **Site Performance**: <3 second load times, global CDN
+
+### Monitoring & Maintenance
+- **GitHub Actions**: Built-in workflow monitoring
+- **Cloudflare Analytics**: Site performance and traffic
+- **OpenRouter Dashboard**: API usage and costs
+- **Discord Notifications**: Build success/failure alerts
+
+### Custom Domain Setup (When Purchased)
+1. **Purchase Domain**: From any registrar (GoDaddy, Namecheap, etc.)
+2. **Add to Cloudflare**: Add site to Cloudflare dashboard
+3. **Update Nameservers**: Point domain to Cloudflare nameservers
+4. **Connect to Pages**: Add custom domain in Cloudflare Pages
+5. **SSL Certificate**: Automatically issued by Cloudflare
+6. **DNS Configuration**: Automatic CNAME record creation
+
+### Troubleshooting
+- **Build Failures**: Check GitHub Actions logs, verify secrets
+- **Translation Failures**: Verify OpenRouter API key, check credits
+- **Deployment Issues**: Check Cloudflare API token permissions
+- **Site Issues**: Check build output directory, verify DNS
+
+### Documentation
+- **Complete Setup Guide**: `docs/CLOUDFLARE_COMPLETE_SETUP.md`
+- **Wrangler CLI Setup**: `docs/WRANGLER_CLI_SETUP.md`
+- **Parallelization Strategy**: `docs/PARALLELIZATION_STRATEGY.md`
+- **Backfill Strategy**: `docs/BACKFILL_STRATEGY.md`
+- **Donation Setup**: `docs/DONATION_SETUP_PLAN.md`
+

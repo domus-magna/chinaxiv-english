@@ -54,6 +54,11 @@ def render_site(items: List[Dict[str, Any]]) -> None:
     tmpl_index = env.get_template("index.html")
     html_index = tmpl_index.render(items=items, root=".")
     write_text(os.path.join(base_out, "index.html"), html_index)
+    
+    # Monitor page
+    tmpl_monitor = env.get_template("monitor.html")
+    html_monitor = tmpl_monitor.render(root=".")
+    write_text(os.path.join(base_out, "monitor.html"), html_monitor)
 
     # Item pages
     tmpl_item = env.get_template("item.html")

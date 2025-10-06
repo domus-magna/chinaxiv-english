@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: '0 3 * * *'
   workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Number of papers to process'
+        required: false
+        default: '5'
 
 jobs:
   build:
@@ -16,50 +21,38 @@ jobs:
         with:
           python-version: '3.11'
           cache: 'pip'
-      - name: Install deps
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-      - name: Tests
+      - name: Run tests
         run: pytest -q
-      - name: Health check
-        run: |
-          python -m src.health --skip-openrouter || true
-      - name: Build site (Internet Archive approach)
+      - name: Build site
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
           # Harvest from Internet Archive
-          python -m src.harvest_ia --limit 10 || true
+          python -m src.harvest_ia --limit ${{ inputs.limit || 5 }} || true
           
           # Find latest records
           latest=$(ls -1t data/records/ia_*.json 2>/dev/null | head -n1 || echo '')
           if [ -n "$latest" ]; then
-            python -m src.select_and_fetch --records "$latest" --limit 5 --output data/selected.json || true
+            python -m src.select_and_fetch --records "$latest" --limit ${{ inputs.limit || 5 }} --output data/selected.json || true
           else
             echo '[]' > data/selected.json
           fi
           
-          # Translate (dry-run for CI)
-          python -m src.pipeline --limit 5 --dry-run || true
+          # Translate
+          python -m src.pipeline --limit ${{ inputs.limit || 5 }} || true
           
           # Render site
           python -m src.render
           python -m src.search_index
           python -m src.make_pdf || true
-          
-          # Send Discord notification on success
-          if [ -n "$DISCORD_WEBHOOK_URL" ]; then
-            curl -H "Content-Type: application/json" \
-                 -d '{"embeds":[{"title":"✅ CI/CD Pipeline Success","color":3066993,"fields":[{"name":"Status","value":"Site deployed successfully","inline":true},{"name":"Environment","value":"GitHub Actions","inline":true}]}]}' \
-                 "$DISCORD_WEBHOOK_URL" || true
-          fi
       - name: Deploy to Cloudflare Pages
-        uses: cloudflare/pages-action@v1
-        with:
-          apiToken: ${{ secrets.CF_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: chinaxiv-english
-          directory: site
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        run: |
+          npm install -g wrangler
+          wrangler pages deploy site --project-name chinaxiv-english

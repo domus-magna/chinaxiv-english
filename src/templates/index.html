@@ -1,26 +1,65 @@
 {% extends "base.html" %}
 {% block content %}
-  <h1>Recent Translations from ChinaXiv</h1>
-  <p style="color: #555; margin-bottom: 20px;">
-    Automatically translated preprints from the Chinese arXiv (ChinaXiv).
-    All translations are machine-generated—please verify with the original source.
-  </p>
+  <div class="page-header">
+    <h1>Recent Translations from ChinaXiv</h1>
+    <p class="page-description">
+      Automatically translated preprints from the Chinese arXiv (ChinaXiv).
+      All translations are machine-generated—please verify with the original source.
+    </p>
+  </div>
 
   <div class="search-block">
-    <input id="search-input" placeholder="Search by title, authors, or abstract…" />
+    <div class="search-input-group">
+      <input id="search-input" placeholder="Search by title, authors, or abstract…" />
+      <button class="search-btn">Search</button>
+    </div>
+    <div class="search-filters">
+      <div class="filter-group">
+        <label for="category-filter">Category:</label>
+        <select id="category-filter">
+          <option value="">All Categories</option>
+          <option value="cs">Computer Science</option>
+          <option value="math">Mathematics</option>
+          <option value="physics">Physics</option>
+          <option value="biology">Biology</option>
+          <option value="chemistry">Chemistry</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="date-filter">Date:</label>
+        <select id="date-filter">
+          <option value="">All Dates</option>
+          <option value="today">Today</option>
+          <option value="week">This Week</option>
+          <option value="month">This Month</option>
+          <option value="year">This Year</option>
+        </select>
+      </div>
+    </div>
     <div id="search-results"></div>
   </div>
 
   <ul class="item-list" id="items">
     {% for it in items %}
-      <li>
-        <h3><a href="{{ root }}/items/{{ it.id }}/">{{ it.title_en }}</a></h3>
-        <div class="meta">
-          {{ ', '.join(it.creators or ['Unknown']) }}
-          {% if it.subjects %} — {{ ', '.join(it.subjects or []) }}{% endif %}
+      <li class="paper-item">
+        <div class="paper-header">
+          <h3><a href="{{ root }}/items/{{ it.id }}/">{{ it.title_en }}</a></h3>
+          <div class="paper-id">ChinaXiv {{ it.id.split('-')[-1] if '-' in it.id else it.id }}</div>
         </div>
-        <div class="meta" style="margin-top: 4px;">{{ it.date }}</div>
-        <p>{{ it.abstract_en[:300] }}{% if it.abstract_en|length > 300 %}…{% endif %}</p>
+        <div class="paper-meta">
+          <div class="authors">{{ ', '.join(it.creators or ['Unknown']) }}</div>
+          <div class="subjects">
+            {% if it.subjects %}
+              {% for subject in it.subjects[:2] %}
+                <span class="subject-badge">{{ subject }}</span>
+              {% endfor %}
+            {% endif %}
+          </div>
+          <div class="date">{{ it.date }}</div>
+        </div>
+        <div class="paper-abstract">
+          {{ it.abstract_en[:300] }}{% if it.abstract_en|length > 300 %}…{% endif %}
+        </div>
       </li>
     {% endfor %}
   </ul>
@@ -28,4 +67,10 @@
   {% if not items %}
     <p style="color: #777; font-style: italic; margin-top: 40px;">No translations available yet.</p>
   {% endif %}
+
+  <div class="support-section">
+    <h2>Support ChinaXiv Translations</h2>
+    <p>Help us continue translating Chinese academic papers to English. Your support covers API costs, server expenses, and ongoing development.</p>
+    <a href="{{ root }}/donation.html" class="donation-btn">Please support us by donating here</a>
+  </div>
 {% endblock %}
