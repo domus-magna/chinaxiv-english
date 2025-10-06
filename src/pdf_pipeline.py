@@ -12,9 +12,9 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional
 
-import requests
 from tenacity import retry, stop_after_attempt, wait_exponential
-
+from .http_client import get_session
+from .config import get_proxies
 from .body_extract import extract_from_pdf
 from .utils import log, read_json, write_json
 
@@ -32,17 +32,25 @@ def download_pdf(url: str, output_path: str) -> bool:
         True if successful, False otherwise
     """
     try:
-        # Follow redirects, set user agent to avoid blocks
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (compatible; ChinaXiv-English-Bot/1.0; +https://github.com/yourusername/chinaxiv-english)'
+        session = get_session()
+        proxies, source = get_proxies()
+        kwargs = {
+            "timeout": 60,
+            "stream": True,
+            "allow_redirects": True,
         }
-        resp = requests.get(url, timeout=60, stream=True, allow_redirects=True, headers=headers)
+        if source == "config" and proxies:
+            kwargs["proxies"] = proxies
+
+        resp = session.get(url, **kwargs)
         resp.raise_for_status()
 
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
         with open(output_path, 'wb') as f:
             for chunk in resp.iter_content(chunk_size=8192):
+                if not chunk:
+                    continue
                 f.write(chunk)
 
         return True

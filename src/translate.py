@@ -31,7 +31,7 @@ def translate_field(text: str, model: str, glossary: List[Dict[str, str]], dry_r
         Translated text
     """
     service = TranslationService()
-    return service.translate_field(text, model, dry_run)
+    return service.translate_field(text, model, dry_run, glossary_override=glossary)
 
 
 def translate_paragraphs(paragraphs: List[str], model: str, glossary: List[Dict[str, str]], dry_run: bool = False) -> List[str]:
@@ -48,7 +48,7 @@ def translate_paragraphs(paragraphs: List[str], model: str, glossary: List[Dict[
         List of translated paragraphs
     """
     service = TranslationService()
-    return service.translate_paragraphs(paragraphs, model, dry_run)
+    return service.translate_paragraphs(paragraphs, model, dry_run, glossary_override=glossary)
 
 
 def translate_record(rec: Dict[str, Any], model: str, glossary: List[Dict[str, str]], dry_run: bool = False, force_full_text: bool = False) -> Dict[str, Any]:
@@ -66,7 +66,7 @@ def translate_record(rec: Dict[str, Any], model: str, glossary: List[Dict[str, s
         Translated record
     """
     service = TranslationService()
-    return service.translate_record(rec, dry_run, force_full_text)
+    return service.translate_record(rec, dry_run, force_full_text, glossary_override=glossary)
 
 
 def translate_paper(paper_id: str, dry_run: bool = False, with_full_text: bool = True) -> str:
