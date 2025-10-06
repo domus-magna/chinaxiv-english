@@ -57,28 +57,29 @@ def load_dotenv(path: str = ".env", *, override: bool = False) -> None:
         override: Whether to override existing environment variables
     """
     global _DOTENV_LOADED
-    if _DOTENV_LOADED:
+    # Respect override semantics even after first load.
+    # If override is False and we've already loaded once, skip.
+    if _DOTENV_LOADED and not override:
         return
-    
+
     if not os.path.exists(path):
         _DOTENV_LOADED = True
         return
-    
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            for line in f:
-                s = line.strip()
-                if not s or s.startswith("#"):
-                    continue
-                if "=" not in s:
-                    continue
-                k, v = s.split("=", 1)
-                k = k.strip()
-                v = v.strip().strip('"').strip("'")
-                if override or (k not in os.environ):
-                    os.environ[k] = v
-    finally:
-        _DOTENV_LOADED = True
+
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            s = line.strip()
+            if not s or s.startswith("#"):
+                continue
+            if "=" not in s:
+                continue
+            k, v = s.split("=", 1)
+            k = k.strip()
+            v = v.strip().strip('"').strip("'")
+            # Apply according to override flag
+            if override or (k not in os.environ):
+                os.environ[k] = v
+    _DOTENV_LOADED = True
 
 
 def getenv_bool(key: str, default: bool = False) -> bool:
