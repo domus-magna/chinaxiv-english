@@ -4,6 +4,8 @@ Simplified file-based job queue for batch translation.
 
 import json
 import os
+import fcntl
+import tempfile
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
@@ -34,20 +36,40 @@ class JobQueue:
         return added
     
     def claim_job(self, worker_id: str) -> Optional[Dict]:
-        """Claim a pending job."""
+        """Claim a pending job atomically."""
         for job_file in self.jobs_dir.glob("*.json"):
-            with open(job_file, "r") as f:
-                job = json.load(f)
-            
-            if job["status"] == "pending":
-                job["status"] = "in_progress"
-                job["worker_id"] = worker_id
-                job["started_at"] = datetime.now().isoformat()
+            try:
+                # Use file locking to prevent race conditions
+                with open(job_file, "r+") as f:
+                    # Try to acquire exclusive lock
+                    fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    
+                    # Read job data
+                    f.seek(0)
+                    job = json.load(f)
+                    
+                    # Check if still pending (another worker might have claimed it)
+                    if job["status"] == "pending":
+                        # Update job status atomically
+                        job["status"] = "in_progress"
+                        job["worker_id"] = worker_id
+                        job["started_at"] = datetime.now().isoformat()
+                        
+                        # Write updated job data
+                        f.seek(0)
+                        f.truncate()
+                        json.dump(job, f)
+                        f.flush()
+                        
+                        return job
+                    
+            except (OSError, IOError):
+                # File is locked by another process, try next file
+                continue
+            except (json.JSONDecodeError, KeyError):
+                # Corrupted job file, skip
+                continue
                 
-                with open(job_file, "w") as f:
-                    json.dump(job, f)
-                
-                return job
         return None
     
     def complete_job(self, job_id: str):
@@ -109,6 +131,103 @@ class JobQueue:
                         job_file.unlink()
                 except ValueError:
                     continue
+    
+    def get_failed_jobs(self) -> List[Dict]:
+        """Get all failed jobs."""
+        failed_jobs = []
+        for job_file in self.jobs_dir.glob("*.json"):
+            with open(job_file, "r") as f:
+                job = json.load(f)
+            
+            if job["status"] == "failed":
+                failed_jobs.append(job)
+        
+        return failed_jobs
+    
+    def get_recent_completions(self, limit: int = 10) -> List[Dict]:
+        """Get recent completed jobs."""
+        completed_jobs = []
+        for job_file in self.jobs_dir.glob("*.json"):
+            with open(job_file, "r") as f:
+                job = json.load(f)
+            
+            if job["status"] == "completed":
+                completed_jobs.append(job)
+        
+        # Sort by completion time (most recent first)
+        completed_jobs.sort(
+            key=lambda x: x.get("completed_at", ""), 
+            reverse=True
+        )
+        
+        return completed_jobs[:limit]
+    
+    def reset_failed_jobs(self) -> int:
+        """Reset failed jobs to pending status."""
+        reset_count = 0
+        for job_file in self.jobs_dir.glob("*.json"):
+            with open(job_file, "r") as f:
+                job = json.load(f)
+            
+            if job["status"] == "failed":
+                job["status"] = "pending"
+                job["attempts"] = 0
+                job["last_error"] = None
+                job["worker_id"] = None
+                job["started_at"] = None
+                
+                with open(job_file, "w") as f:
+                    json.dump(job, f)
+                
+                reset_count += 1
+        
+        return reset_count
+    
+    def reset_stuck_jobs(self, timeout_minutes: int = 10) -> int:
+        """Reset stuck jobs (in_progress for too long) to pending."""
+        cutoff = datetime.now() - timedelta(minutes=timeout_minutes)
+        reset_count = 0
+        
+        for job_file in self.jobs_dir.glob("*.json"):
+            with open(job_file, "r") as f:
+                job = json.load(f)
+            
+            if job["status"] == "in_progress":
+                try:
+                    started_at = datetime.fromisoformat(job.get("started_at", ""))
+                    if started_at < cutoff:
+                        job["status"] = "pending"
+                        job["worker_id"] = None
+                        job["started_at"] = None
+                        
+                        with open(job_file, "w") as f:
+                            json.dump(job, f)
+                        
+                        reset_count += 1
+                except ValueError:
+                    # Invalid timestamp, reset anyway
+                    job["status"] = "pending"
+                    job["worker_id"] = None
+                    job["started_at"] = None
+                    
+                    with open(job_file, "w") as f:
+                        json.dump(job, f)
+                    
+                    reset_count += 1
+        
+        return reset_count
+    
+    def get_pending_job_ids(self) -> List[str]:
+        """Get all pending job IDs without loading full job data."""
+        pending_ids = []
+        for job_file in self.jobs_dir.glob("*.json"):
+            with open(job_file, "r") as f:
+                job = json.load(f)
+            
+            if job["status"] == "pending":
+                pending_ids.append(job["id"])
+        
+        return pending_ids
 
 
 # Global job queue instance

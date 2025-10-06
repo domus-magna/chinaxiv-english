@@ -102,13 +102,8 @@ def start_workers(num_workers: int) -> None:
     
     log(f"Processing {stats['pending']} pending jobs...")
     
-    # Get all pending paper IDs
-    pending_ids = []
-    for job_file in Path("data/jobs").glob("*.json"):
-        with open(job_file, "r") as f:
-            job = json.load(f)
-        if job["status"] == "pending":
-            pending_ids.append(job["id"])
+    # Get all pending paper IDs using queue abstraction
+    pending_ids = job_queue.get_pending_job_ids()
     
     # Process papers one at a time
     completed = 0
