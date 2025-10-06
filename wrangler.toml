@@ -1,0 +1,19 @@
+name = "chinaxiv-english"
+compatibility_date = "2024-01-01"
+
+# Pages configuration
+pages_build_output_dir = "site"
+
+# Environment variables (will be overridden by GitHub Actions)
+[vars]
+OPENROUTER_API_KEY = ""
+DISCORD_WEBHOOK_URL = ""
+
+# Production environment
+[env.production]
+name = "chinaxiv-english"
+compatibility_date = "2024-01-01"
+
+[env.production.vars]
+OPENROUTER_API_KEY = ""
+DISCORD_WEBHOOK_URL = ""

@@ -323,6 +323,7 @@ def run_cli():
     parser.add_argument("--resume", action="store_true", help="Resume from checkpoint")
     parser.add_argument("--dry-run", action="store_true", help="Test mode (scrape but don't save)")
     parser.add_argument("--rate-limit", type=float, default=0.5, help="Seconds between requests (default: 0.5)")
+    parser.add_argument("--reverse", action="store_true", help="Process months in reverse order (most recent first)")
     args = parser.parse_args()
 
     # Load environment
@@ -353,6 +354,10 @@ def run_cli():
     else:
         print("Error: Must specify --month OR (--start AND --end)")
         return
+
+    # Reverse order if requested (most recent first)
+    if args.reverse:
+        months.reverse()
 
     # Initialize scraper
     scraper = ChinaXivScraper(api_key, zone, rate_limit=args.rate_limit)

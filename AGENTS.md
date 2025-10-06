@@ -67,3 +67,126 @@
 - **Implementation**: See `docs/INTERNET_ARCHIVE_PLAN.md` for detailed migration plan
 - **Deprecated**: Proxy setup docs (`docs/PROXY_SETUP.md`, `docs/PROXY_REVIEW.md`) archived - not needed for IA approach
 
+## Live Configuration & Deployment
+
+### Current Status
+- **Translation Pipeline**: ✅ Working (fixed API key bug in workers)
+- **GitHub Actions**: ✅ Configured for Cloudflare Pages deployment
+- **Batch Translation**: ✅ Ready for parallel processing
+- **Donation System**: ✅ Crypto donation page implemented
+- **UI Improvements**: ✅ Cleaner navigation and layout
+
+### GitHub Actions Workflows
+- **Daily Build** (`.github/workflows/build.yml`): Runs at 3 AM UTC, processes 5 papers, deploys to Cloudflare Pages
+- **Configurable Backfill** (`.github/workflows/backfill.yml`): Configurable parallel processing via inputs (1-10 jobs, 1-100 workers per job)
+
+### Required GitHub Secrets
+- `CF_API_TOKEN`: Cloudflare API token with Pages:Edit permission
+- `CLOUDFLARE_ACCOUNT_ID`: Cloudflare Account ID
+- `OPENROUTER_API_KEY`: OpenRouter API key for translations
+- `DISCORD_WEBHOOK_URL`: Discord webhook for notifications (optional)
+
+### Cloudflare Pages Configuration
+- **Project Name**: `chinaxiv-english`
+- **Build Output Directory**: `site`
+- **Production Branch**: `main`
+- **Build Command**: (empty - GitHub Actions handles building)
+- **Environment Variables**: `OPENROUTER_API_KEY`, `DISCORD_WEBHOOK_URL`
+
+### Translation System
+- **Model**: DeepSeek V3.2-Exp via OpenRouter
+- **Cost**: ~$0.0013 per paper
+- **Full Backfill Cost**: ~$45 for 34,237 papers
+- **Workers**: Configurable (10-100 per job)
+- **Parallelization**: Up to 20 concurrent jobs
+
+### Donation System
+- **Supported Cryptocurrencies**: BTC, ETH, SOL, USDC, USDT, STX
+- **Donation Page**: `/donation.html`
+- **Integration**: Links in main page and footer
+- **Features**: Click-to-copy addresses, QR codes, mobile-friendly
+
+### Performance Metrics
+- **Current Daily Processing**: 5 papers/day
+- **Parallel Processing**: 100-2,000 papers/hour
+- **Full Backfill Time**: 3.4 hours (extreme parallel) to 14 days (current)
+- **Site Performance**: <3 second load times, global CDN
+
+### Monitoring & Maintenance
+- **GitHub Actions**: Built-in workflow monitoring
+- **Cloudflare Analytics**: Site performance and traffic
+- **OpenRouter Dashboard**: API usage and costs
+- **Discord Notifications**: Build success/failure alerts
+
+### Custom Domain Setup (When Purchased)
+1. **Purchase Domain**: From any registrar (GoDaddy, Namecheap, etc.)
+2. **Add to Cloudflare**: Add site to Cloudflare dashboard
+3. **Update Nameservers**: Point domain to Cloudflare nameservers
+4. **Connect to Pages**: Add custom domain in Cloudflare Pages
+5. **SSL Certificate**: Automatically issued by Cloudflare
+6. **DNS Configuration**: Automatic CNAME record creation
+
+### Troubleshooting
+- **Build Failures**: Check GitHub Actions logs, verify secrets
+- **Translation Failures**: Verify OpenRouter API key, check credits
+- **Deployment Issues**: Check Cloudflare API token permissions
+- **Site Issues**: Check build output directory, verify DNS
+
+### Documentation
+- **Complete Setup Guide**: `docs/archive/old/CLOUDFLARE_COMPLETE_SETUP.md`
+- **Wrangler CLI Setup**: `docs/archive/old/WRANGLER_CLI_SETUP.md`
+- **Parallelization Strategy**: `docs/archive/old/PARALLELIZATION_STRATEGY.md`
+- **Backfill Strategy**: `docs/archive/old/BACKFILL_STRATEGY.md`
+- **Donation Setup**: `docs/archive/old/DONATION_SETUP_PLAN.md`
+
+## Pull Request Review Guidelines
+
+### Checking All Review Types
+When reviewing pull requests, **ALWAYS check for ALL types of reviews and comments**:
+
+1. **Regular Comments**: `gh pr view --comments` or `gh pr view --json comments`
+2. **Review Summaries**: `gh pr view --json reviews` 
+3. **Inline Review Comments**: `gh api repos/{owner}/{repo}/pulls/{number}/comments`
+
+### Critical Review Sources
+- **mentatbot**: Human-style reviews with detailed analysis
+- **chatgpt-codex-connector[bot]**: Codex automated reviews with inline suggestions
+- **cursor[bot]**: Cursor IDE automated reviews
+- **Manual reviews**: From human contributors
+
+### Review Priority Levels
+- **P1 (Critical)**: Fix before merging - causes runtime errors or data corruption
+- **Medium**: Significant issues that should be addressed
+- **Low**: Minor improvements or style issues
+
+### Common Review Issues
+- **Workflow issues**: Hardcoded values, missing setup steps, broken notifications
+- **Documentation**: Incorrect paths, references to non-existent files
+- **Code quality**: Race conditions, memory issues, API mismatches
+- **Security**: Hardcoded secrets, missing validation
+
+### Review Response Process
+1. **Check all review types** using the commands above
+2. **Prioritize P1 issues** - fix critical problems first
+3. **Address documentation issues** - update paths and references
+4. **Test fixes** - validate changes work correctly
+5. **Add detailed PR comments** explaining what was fixed
+6. **Push fixes** and notify reviewers
+
+### GitHub CLI Commands for Reviews
+```bash
+# Check regular comments
+gh pr view --comments
+
+# Check review summaries  
+gh pr view --json reviews
+
+# Check inline review comments (CRITICAL - often missed!)
+gh api repos/seconds-0/chinaxiv-english/pulls/{number}/comments
+
+# Get all review data
+gh pr view --json comments,reviews
+```
+
+**Remember**: Inline review comments are separate from regular comments and require the specific API endpoint to access!
+

@@ -1,5 +1,5 @@
 """
-HTTP client for ChinaXiv English translation.
+Optimized HTTP client with connection pooling for ChinaXiv English translation.
 """
 from __future__ import annotations
 
@@ -7,6 +7,8 @@ import os
 from typing import Optional, Tuple
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from .config import get_proxies
@@ -19,6 +21,39 @@ USER_AGENT = "chinaxiv-english/1.0 (+https://github.com/)"
 class HttpError(Exception):
     """HTTP-related errors."""
     pass
+
+
+# Global session with connection pooling
+_session = None
+
+
+def get_session() -> requests.Session:
+    """Get or create optimized session with connection pooling."""
+    global _session
+    if _session is None:
+        _session = requests.Session()
+        
+        # Configure retry strategy
+        retry_strategy = Retry(
+            total=3,
+            backoff_factor=1,
+            status_forcelist=[429, 500, 502, 503, 504],
+        )
+        
+        # Configure adapter with connection pooling
+        adapter = HTTPAdapter(
+            pool_connections=10,
+            pool_maxsize=20,
+            max_retries=retry_strategy
+        )
+        
+        _session.mount("http://", adapter)
+        _session.mount("https://", adapter)
+        
+        # Set default headers
+        _session.headers.update({"User-Agent": USER_AGENT})
+    
+    return _session
 
 
 @retry(
@@ -34,7 +69,7 @@ def http_get(
     timeout: Tuple[int, int] = DEFAULT_TIMEOUT
 ) -> requests.Response:
     """
-    Make HTTP GET request with retry logic and proxy support.
+    Make HTTP GET request with retry logic and connection pooling.
     
     Args:
         url: URL to request
@@ -48,19 +83,21 @@ def http_get(
     Raises:
         HttpError: On request failure or non-OK status
     """
-    h = {"User-Agent": USER_AGENT}
+    session = get_session()
+    
+    # Update headers for this request
+    request_headers = {}
     if headers:
-        h.update(headers)
+        request_headers.update(headers)
     
     proxies, source = get_proxies()
     eff_timeout = (15, 90) if source != "none" else timeout
     
     try:
         if source == "config" and proxies:
-            resp = requests.get(url, headers=h, params=params, timeout=eff_timeout, proxies=proxies)
+            resp = session.get(url, headers=request_headers, params=params, timeout=eff_timeout, proxies=proxies)
         else:
-            # Use trust_env behavior so NO_PROXY is honored for env proxies
-            resp = requests.get(url, headers=h, params=params, timeout=eff_timeout)
+            resp = session.get(url, headers=request_headers, params=params, timeout=eff_timeout)
     except requests.RequestException as e:
         raise HttpError(str(e))
     
@@ -94,3 +131,11 @@ def openrouter_headers() -> dict:
         "HTTP-Referer": "https://github.com/",
         "X-Title": "chinaxiv-english",
     }
+
+
+def close_session():
+    """Close the global session."""
+    global _session
+    if _session:
+        _session.close()
+        _session = None

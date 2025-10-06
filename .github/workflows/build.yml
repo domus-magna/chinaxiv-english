@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: '0 3 * * *'
   workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Number of papers to process'
+        required: false
+        default: '5'
 
 jobs:
   build:
@@ -16,50 +21,86 @@ jobs:
         with:
           python-version: '3.11'
           cache: 'pip'
-      - name: Install deps
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-      - name: Tests
+      - name: Run tests
         run: pytest -q
-      - name: Health check
-        run: |
-          python -m src.health --skip-openrouter || true
-      - name: Build site (Internet Archive approach)
+      - name: Build site
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
+          set -e
+          echo "🚀 Starting build process..."
+          
           # Harvest from Internet Archive
-          python -m src.harvest_ia --limit 10 || true
+          echo "📥 Harvesting from Internet Archive..."
+          python -m src.harvest_ia --limit ${{ inputs.limit || 5 }} || {
+            echo "⚠️ Harvest failed, continuing with existing data"
+          }
           
           # Find latest records
+          echo "🔍 Finding latest records..."
           latest=$(ls -1t data/records/ia_*.json 2>/dev/null | head -n1 || echo '')
           if [ -n "$latest" ]; then
-            python -m src.select_and_fetch --records "$latest" --limit 5 --output data/selected.json || true
+            echo "📋 Processing records from: $latest"
+            python -m src.select_and_fetch --records "$latest" --limit ${{ inputs.limit || 5 }} --output data/selected.json || {
+              echo "⚠️ Record selection failed, using empty selection"
+              echo '[]' > data/selected.json
+            }
           else
+            echo "⚠️ No records found, using empty selection"
             echo '[]' > data/selected.json
           fi
           
-          # Translate (dry-run for CI)
-          python -m src.pipeline --limit 5 --dry-run || true
+          # Translate
+          echo "🌐 Running translation pipeline..."
+          python -m src.pipeline --limit ${{ inputs.limit || 5 }} || {
+            echo "⚠️ Translation failed, continuing with existing translations"
+          }
           
           # Render site
-          python -m src.render
-          python -m src.search_index
-          python -m src.make_pdf || true
+          echo "🎨 Rendering site..."
+          python -m src.render || {
+            echo "❌ Site rendering failed"
+            exit 1
+          }
           
-          # Send Discord notification on success
-          if [ -n "$DISCORD_WEBHOOK_URL" ]; then
-            curl -H "Content-Type: application/json" \
-                 -d '{"embeds":[{"title":"✅ CI/CD Pipeline Success","color":3066993,"fields":[{"name":"Status","value":"Site deployed successfully","inline":true},{"name":"Environment","value":"GitHub Actions","inline":true}]}]}' \
-                 "$DISCORD_WEBHOOK_URL" || true
-          fi
-      - name: Deploy to Cloudflare Pages
-        uses: cloudflare/pages-action@v1
+          echo "🔍 Building search index..."
+          python -m src.search_index || {
+            echo "❌ Search index failed"
+            exit 1
+          }
+          
+          echo "📄 Generating PDFs..."
+          python -m src.make_pdf || {
+            echo "⚠️ PDF generation failed, continuing without PDFs"
+          }
+          
+          echo "✅ Build completed successfully!"
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          apiToken: ${{ secrets.CF_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: chinaxiv-english
-          directory: site
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          node-version: '18'
+      - name: Deploy to Cloudflare Pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        run: |
+          set -e
+          echo "🚀 Deploying to Cloudflare Pages..."
+          
+          echo "📦 Installing Wrangler CLI..."
+          npm install -g wrangler || {
+            echo "❌ Failed to install Wrangler"
+            exit 1
+          }
+          
+          echo "🌐 Deploying site..."
+          wrangler pages deploy site --project-name chinaxiv-english || {
+            echo "❌ Deployment failed"
+            exit 1
+          }
+          
+          echo "✅ Deployment completed successfully!"
