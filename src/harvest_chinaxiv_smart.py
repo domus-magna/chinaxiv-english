@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 """
+DEPRECATED: Direct ChinaXiv scraping.
+Use Internet Archive harvester in src/harvest_ia.py instead.
+
 Smart ChinaXiv harvester using pre-analyzed max IDs.
 
 Based on IA data + homepage analysis, uses known reasonable maxes
