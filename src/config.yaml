@@ -29,6 +29,11 @@ models:
 translation:
   batch_paragraphs: false
 
+formatting:
+  mode: heuristic  # 'heuristic' or 'llm'
+  # model: deepseek/deepseek-v3.2-exp  # optional override
+  temperature: 0.1
+
 glossary:
   - zh: "机器学习"
     en: "machine learning"

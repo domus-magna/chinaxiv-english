@@ -489,7 +489,7 @@ python -m src.render
 python -m src.search_index
 
 # Serve locally
-python -m http.server 8000 --directory site
+python -m http.server 8001 --directory site
 ```
 
 ## Deployment

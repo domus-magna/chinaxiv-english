@@ -28,7 +28,7 @@
     </div>
 
     <h2>Abstract</h2>
-    <div class="abstract">{{ item.abstract_en }}</div>
+    <div class="abstract">{{ (item.abstract_md or item.abstract_en) | markdown | safe }}</div>
 
     {% if item.formatted_body_md %}
       <h2>Full Text</h2>
@@ -49,4 +49,3 @@
     </div>
   </article>
 {% endblock %}
-

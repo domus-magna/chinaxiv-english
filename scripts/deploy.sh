@@ -78,7 +78,7 @@ echo "   - Site: ✅ Generated"
 echo "   - Health: ✅ Monitored"
 echo ""
 echo "🌐 To serve the site locally:"
-echo "   python -m http.server -d site 8000"
+echo "   python -m http.server -d site 8001"
 echo ""
 echo "📊 To monitor health:"
 echo "   python scripts/monitor.py"
@@ -89,6 +89,6 @@ echo ""
 
 # Optional: Start local server
 if [ "$1" = "--serve" ]; then
-    echo "🌐 Starting local server on http://localhost:8000"
-    python -m http.server -d site 8000
+    echo "🌐 Starting local server on http://localhost:8001"
+    python -m http.server -d site 8001
 fi

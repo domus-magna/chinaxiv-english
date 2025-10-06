@@ -69,14 +69,14 @@ Cost tracking is estimated via crude token counts and `config.yaml` pricing.
 
 ## Preview
 
-- `python -m http.server -d site 8000`
+- `python -m http.server -d site 8001`
 - Or: `make serve`
 
 ## Dev (live translation)
 
 - Requires Python 3.11+ available as `python3.11` and `OPENROUTER_API_KEY`.
 - One-liner: `make dev DEV_LIMIT=5`
-- This creates `.venv` with Python 3.11, installs deps, runs tests + health, processes up to 5 new items live, builds site, and serves at `http://localhost:8000`.
+- This creates `.venv` with Python 3.11, installs deps, runs tests + health, processes up to 5 new items live, builds site, and serves at `http://localhost:8001`.
 
 ### Installing Python 3.11 (macOS options)
 - Homebrew: `brew install python@3.11` (then ensure `python3.11` is on PATH)

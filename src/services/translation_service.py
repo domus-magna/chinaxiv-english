@@ -158,7 +158,7 @@ class TranslationService:
             if info["retryable"]:
                 raise OpenRouterRetryableError(f"{message}", code=code, fallback_ok=info["fallback_ok"])
             # fatal or non-retryable – decide if fallback to alternate models makes sense
-            if not info["fallback_ok" ]:
+            if not info["fallback_ok"]:
                 # Immediate critical alert for fatal auth/payment
                 try:
                     alert_critical(

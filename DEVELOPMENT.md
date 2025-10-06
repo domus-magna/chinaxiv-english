@@ -42,7 +42,7 @@ wrangler login
 # Run translation pipeline (10 papers)
 ./scripts/dev.sh pipeline 10
 
-# Start local server (port 8000)
+# Start local server (port 8001)
 ./scripts/dev.sh serve
 
 # Start local server (port 3000)
@@ -65,7 +65,7 @@ python -m src.search_index
 wrangler pages deploy site --project-name chinaxiv-english
 
 # Start local server
-python -m http.server -d site 8000
+python -m http.server -d site 8001
 
 # Run tests
 python -m pytest tests/ -v
@@ -138,7 +138,7 @@ wrangler pages domain remove chinaxiv-english yourdomain.com
 ./scripts/dev.sh dev
 
 # Make changes to code
-# Test locally at http://localhost:8000
+# Test locally at http://localhost:8001
 
 # Deploy changes
 ./scripts/dev.sh deploy
