@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from typing import List, Tuple
 
 
+# Note: We preserve not only math, but also citations and select LaTeX markup.
+# The token prefix remains MATH_ for backward compatibility.
 MATH_TOKEN_FMT = "⟪MATH_{:04d}⟫"
 
 
@@ -71,4 +73,3 @@ def verify_token_parity(source_mappings: List[Masking], translated_text: str) ->
             ok = False
             break
     return ok
-
