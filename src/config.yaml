@@ -26,6 +26,8 @@ models:
   default_slug: "deepseek/deepseek-v3.2-exp"
   alternates:
     - "z-ai/glm-4.5-air"
+translation:
+  batch_paragraphs: false
 
 glossary:
   - zh: "机器学习"
