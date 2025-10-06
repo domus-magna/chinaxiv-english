@@ -47,14 +47,8 @@ def check_api_connectivity() -> Dict[str, bool]:
         log(f"OpenRouter check failed: {e}")
         results['openrouter'] = False
     
-    # Check Internet Archive API
-    try:
-        import requests
-        resp = requests.get("https://archive.org/services/search/v1/scrape?q=collection:chinaxivmirror&count=1", timeout=10)
-        results['internet_archive'] = resp.status_code == 200
-    except Exception as e:
-        log(f"Internet Archive check failed: {e}")
-        results['internet_archive'] = False
+    # Internet Archive removed - we no longer harvest from there
+    # (only had metadata, not full papers)
     
     return results
 
@@ -70,10 +64,11 @@ def check_data_health() -> Dict[str, any]:
         'last_translation': None
     }
     
-    # Check records
+    # Check records (no longer harvesting from Internet Archive)
     records_dir = Path("data/records")
     if records_dir.exists():
-        record_files = list(records_dir.glob("ia_*.json"))
+        # Look for any record files (not just ia_*)
+        record_files = list(records_dir.glob("*.json"))
         health['records_count'] = len(record_files)
         
         if record_files:
