@@ -2,14 +2,12 @@ from __future__ import annotations
 
 import argparse
 import os
-import re
 from typing import Any, Dict, List, Optional
 
 from bs4 import BeautifulSoup
 
 from .utils import (
     ensure_dir,
-    getenv_bool,
     http_get,
     log,
     read_json,
@@ -29,7 +27,10 @@ def find_latex_archive_links(html: str, base_url: Optional[str] = None) -> List[
         if not href:
             continue
         if any(href.lower().endswith(ext) for ext in (".tar.gz", ".zip")) and (
-            "tex" in href.lower() or "source" in href.lower() or "latex" in href.lower() or "tex" in text
+            "tex" in href.lower()
+            or "source" in href.lower()
+            or "latex" in href.lower()
+            or "tex" in text
         ):
             if href.startswith("http"):
                 links.append(href)
@@ -49,10 +50,10 @@ def download_file(url: str, dest_path: str) -> Optional[str]:
         return None
     # Validate PDF downloads
     content = resp.content
-    if dest_path.lower().endswith('.pdf'):
-        headers = getattr(resp, 'headers', {}) or {}
-        ctype = headers.get('Content-Type', '').lower()
-        if ('pdf' not in ctype) and (not content.startswith(b'%PDF-')):
+    if dest_path.lower().endswith(".pdf"):
+        headers = getattr(resp, "headers", {}) or {}
+        ctype = headers.get("Content-Type", "").lower()
+        if ("pdf" not in ctype) and (not content.startswith(b"%PDF-")):
             log(f"skipping non-PDF content from {url}")
             return None
     ensure_dir(os.path.dirname(dest_path))
@@ -61,8 +62,9 @@ def download_file(url: str, dest_path: str) -> Optional[str]:
     return dest_path
 
 
-
-def process_records(records_path: str, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+def process_records(
+    records_path: str, limit: Optional[int] = None
+) -> List[Dict[str, Any]]:
     records: List[Dict[str, Any]] = read_json(records_path)
     seen = read_seen()
     processed: List[Dict[str, Any]] = []
@@ -117,8 +119,12 @@ def process_records(records_path: str, limit: Optional[int] = None) -> List[Dict
 
 
 def run_cli() -> None:
-    parser = argparse.ArgumentParser(description="Select new records and fetch PDFs/sources.")
-    parser.add_argument("--records", required=True, help="Path to normalized records JSON")
+    parser = argparse.ArgumentParser(
+        description="Select new records and fetch PDFs/sources."
+    )
+    parser.add_argument(
+        "--records", required=True, help="Path to normalized records JSON"
+    )
     parser.add_argument("--limit", type=int, help="Max items to process")
     parser.add_argument("--output", help="Output JSON of selected records")
     args = parser.parse_args()

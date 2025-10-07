@@ -1,6 +1,7 @@
 """
 Translation data model for ChinaXiv English translation.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -12,7 +13,7 @@ from .paper import Paper
 @dataclass
 class Translation:
     """Translation data model."""
-    
+
     id: str
     oai_identifier: Optional[str] = None
     title_en: Optional[str] = None
@@ -24,7 +25,7 @@ class Translation:
     license: Optional[Dict[str, Any]] = None
     source_url: Optional[str] = None
     pdf_url: Optional[str] = None
-    
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> Translation:
         """Create Translation from dictionary."""
@@ -39,15 +40,13 @@ class Translation:
             date=data.get("date"),
             license=data.get("license"),
             source_url=data.get("source_url"),
-            pdf_url=data.get("pdf_url")
+            pdf_url=data.get("pdf_url"),
         )
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert Translation to dictionary."""
-        result = {
-            "id": self.id
-        }
-        
+        result = {"id": self.id}
+
         if self.oai_identifier is not None:
             result["oai_identifier"] = self.oai_identifier
         if self.title_en is not None:
@@ -61,9 +60,9 @@ class Translation:
         result["license"] = self.license
         result["source_url"] = self.source_url
         result["pdf_url"] = self.pdf_url
-            
+
         return result
-    
+
     @classmethod
     def from_paper(cls, paper: Paper) -> Translation:
         """Create Translation from Paper."""
@@ -75,45 +74,45 @@ class Translation:
             date=paper.date,
             license=paper.license.to_dict() if paper.license else None,
             source_url=paper.source_url,
-            pdf_url=paper.pdf_url
+            pdf_url=paper.pdf_url,
         )
-    
+
     def has_full_text(self) -> bool:
         """Check if translation includes full text."""
         return bool(self.body_en)
-    
+
     def get_title(self) -> str:
         """Get English title, fallback to empty string."""
         return self.title_en or ""
-    
+
     def get_abstract(self) -> str:
         """Get English abstract, fallback to empty string."""
         return self.abstract_en or ""
-    
+
     def get_body_text(self) -> str:
         """Get body text as a single string."""
         if not self.body_en:
             return ""
         return "\n\n".join(self.body_en)
-    
+
     def get_authors_string(self) -> str:
         """Get authors as a comma-separated string."""
         if not self.creators:
             return ""
         return ", ".join(self.creators)
-    
+
     def get_subjects_string(self) -> str:
         """Get subjects as a comma-separated string."""
         if not self.subjects:
             return ""
         return ", ".join(self.subjects)
-    
+
     def is_derivatives_allowed(self) -> bool:
         """Check if derivatives are allowed based on license."""
         if not self.license:
             return False
         return bool(self.license.get("derivatives_allowed", False))
-    
+
     def get_search_index_entry(self) -> Dict[str, Any]:
         """Get search index entry for this translation."""
         return {
@@ -122,5 +121,5 @@ class Translation:
             "authors": self.get_authors_string(),
             "abstract": self.get_abstract(),
             "subjects": self.get_subjects_string(),
-            "date": self.date or ""
+            "date": self.date or "",
         }

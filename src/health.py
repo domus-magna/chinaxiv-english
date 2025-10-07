@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 
 from .utils import http_get, log, openrouter_headers, get_config, load_dotenv
@@ -43,7 +42,9 @@ def check_openrouter(connect_only: bool = True) -> bool:
 
 
 def run_cli() -> None:
-    parser = argparse.ArgumentParser(description="Health checks for OAI and OpenRouter.")
+    parser = argparse.ArgumentParser(
+        description="Health checks for OAI and OpenRouter."
+    )
     parser.add_argument("--skip-oai", action="store_true")
     parser.add_argument("--skip-openrouter", action="store_true")
     args = parser.parse_args()

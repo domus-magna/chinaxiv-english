@@ -9,9 +9,17 @@ from .utils import http_get, log, get_config, ensure_dir, read_json, write_json
 
 
 LICENSE_PATTERNS = [
-    (re.compile(r"cc[- ]?by[- ]?nd|attribution[- ]?no[- ]?derivatives", re.I), "CC BY-ND"),
+    (
+        re.compile(r"cc[- ]?by[- ]?nd|attribution[- ]?no[- ]?derivatives", re.I),
+        "CC BY-ND",
+    ),
     (re.compile(r"cc[- ]?by[- ]?sa|attribution[- ]?sharealike", re.I), "CC BY-SA"),
-    (re.compile(r"cc[- ]?by|attribution(?![- ]?no[- ]?derivatives|[- ]?sharealike)", re.I), "CC BY"),
+    (
+        re.compile(
+            r"cc[- ]?by|attribution(?![- ]?no[- ]?derivatives|[- ]?sharealike)", re.I
+        ),
+        "CC BY",
+    ),
     (re.compile(r"cc0|public\s*domain", re.I), "CC0"),
 ]
 
@@ -82,7 +90,9 @@ def scrape_license_from_landing(url: str) -> Optional[str]:
     return guess
 
 
-def decide_derivatives_allowed(record: Dict[str, Any], cfg: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def decide_derivatives_allowed(
+    record: Dict[str, Any], cfg: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
     if cfg is None:
         cfg = get_config()
     raw = (record.get("license") or {}).get("raw") or ""

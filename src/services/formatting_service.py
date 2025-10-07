@@ -4,6 +4,7 @@ Formatting service for consistent Markdown output.
 Uses LLM-based formatting to convert translated fields into consistent Markdown 
 while preserving math and citations. Fails loudly if LLM formatting is unavailable.
 """
+
 from __future__ import annotations
 
 import json
@@ -14,8 +15,8 @@ import requests
 from ..config import get_config, get_proxies
 from ..http_client import openrouter_headers, parse_openrouter_error
 from ..monitoring import monitoring_service, alert_critical
-from ..logging_utils import log
 from ..tex_guard import mask_math, unmask_math, verify_token_parity
+
 # Removed heuristic formatting imports - LLM formatting only
 
 
@@ -51,11 +52,18 @@ class FormattingService:
 
     def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
         self.config = config or get_config()
-        fmt = (self.config.get("formatting") or {})
-        self.model: str = fmt.get("model", self.config.get("models", {}).get("default_slug", "deepseek/deepseek-v3.2-exp"))
+        fmt = self.config.get("formatting") or {}
+        self.model: str = fmt.get(
+            "model",
+            self.config.get("models", {}).get(
+                "default_slug", "deepseek/deepseek-v3.2-exp"
+            ),
+        )
         self.temperature: float = float(fmt.get("temperature", 0.1))
 
-    def format_translation(self, translation: Dict[str, Any], *, dry_run: bool = False) -> Dict[str, Any]:
+    def format_translation(
+        self, translation: Dict[str, Any], *, dry_run: bool = False
+    ) -> Dict[str, Any]:
         """
         Format a translation record into consistent Markdown using LLM.
 
@@ -81,7 +89,9 @@ class FormattingService:
 
         # Join body with sentinel so the model can see paragraph boundaries
         PARA = "\n\n⟪PARA_BREAK⟫\n\n"
-        body_joined = PARA.join((p or "").strip() for p in body_paras if p and p.strip())
+        body_joined = PARA.join(
+            (p or "").strip() for p in body_paras if p and p.strip()
+        )
 
         # Mask math across combined strings to protect content
         abstract_masked, abstract_map = mask_math(abstract)
@@ -99,11 +109,14 @@ class FormattingService:
             "model": self.model,
             "messages": [
                 {"role": "system", "content": FORMATTER_SYSTEM_PROMPT},
-                {"role": "user", "content": (
-                    "Please format this translated paper as consistent Markdown.\n"
-                    "Return ONLY strict JSON with keys 'abstract_md' and 'body_md'.\n\n"
-                    f"Input JSON:\n{json.dumps(user_payload, ensure_ascii=False)}"
-                )},
+                {
+                    "role": "user",
+                    "content": (
+                        "Please format this translated paper as consistent Markdown.\n"
+                        "Return ONLY strict JSON with keys 'abstract_md' and 'body_md'.\n\n"
+                        f"Input JSON:\n{json.dumps(user_payload, ensure_ascii=False)}"
+                    ),
+                },
             ],
             "temperature": self.temperature,
         }
@@ -117,7 +130,9 @@ class FormattingService:
             }
             if source == "config" and proxies:
                 kwargs["proxies"] = proxies
-            resp = requests.post("https://openrouter.ai/api/v1/chat/completions", **kwargs)
+            resp = requests.post(
+                "https://openrouter.ai/api/v1/chat/completions", **kwargs
+            )
             if not resp.ok:
                 info = parse_openrouter_error(resp)
                 status = info["status"]
@@ -125,7 +140,13 @@ class FormattingService:
                 message = info["message"] or f"OpenRouter error {status}"
                 # Record error for budget tracking
                 try:
-                    monitoring_service.record_error(service="openrouter", message=message, status=status, code=code or None, metadata={"component": "formatting", "model": self.model})
+                    monitoring_service.record_error(
+                        service="openrouter",
+                        message=message,
+                        status=status,
+                        code=code or None,
+                        metadata={"component": "formatting", "model": self.model},
+                    )
                 except Exception:
                     pass
                 # For formatting, we don't retry here; surface a clear message
@@ -136,19 +157,35 @@ class FormattingService:
                             "OpenRouter Fatal Error (Formatting)",
                             message,
                             source="formatting_service",
-                            metadata={"status": status, "code": code or "unknown", "model": self.model}
+                            metadata={
+                                "status": status,
+                                "code": code or "unknown",
+                                "model": self.model,
+                            },
                         )
                     except Exception:
                         pass
-                    raise RuntimeError("OpenRouter API key is invalid or account has insufficient funds. Please verify OPENROUTER_API_KEY and credits.")
+                    raise RuntimeError(
+                        "OpenRouter API key is invalid or account has insufficient funds. Please verify OPENROUTER_API_KEY and credits."
+                    )
                 if status == 429:
-                    raise RuntimeError("OpenRouter rate limit exceeded. Please try again later.")
-                raise RuntimeError(f"OpenRouter error {status} ({code or 'unknown_code'}): {message}")
+                    raise RuntimeError(
+                        "OpenRouter rate limit exceeded. Please try again later."
+                    )
+                raise RuntimeError(
+                    f"OpenRouter error {status} ({code or 'unknown_code'}): {message}"
+                )
             data = resp.json()
             content = data["choices"][0]["message"]["content"].strip()
         except requests.exceptions.RequestException as e:
             try:
-                monitoring_service.record_error(service="openrouter", message=str(e), status=None, code="network_error", metadata={"component": "formatting", "model": self.model})
+                monitoring_service.record_error(
+                    service="openrouter",
+                    message=str(e),
+                    status=None,
+                    code="network_error",
+                    metadata={"component": "formatting", "model": self.model},
+                )
             except Exception:
                 pass
             raise RuntimeError(f"Network error calling OpenRouter API: {e}")
@@ -166,16 +203,22 @@ class FormattingService:
                 content_str = inner
             parsed = json.loads(content_str)
         except Exception as e:
-            raise RuntimeError(f"Failed to parse formatter JSON: {e}; content head: {content[:120]}")
+            raise RuntimeError(
+                f"Failed to parse formatter JSON: {e}; content head: {content[:120]}"
+            )
 
         abstract_md_masked = (parsed.get("abstract_md") or "").strip()
         body_md_masked = (parsed.get("body_md") or "").strip()
 
         # Verify math token parity for each part separately
         if not verify_token_parity(abstract_map, abstract_md_masked):
-            raise RuntimeError("Math placeholder parity check failed in abstract formatting output")
+            raise RuntimeError(
+                "Math placeholder parity check failed in abstract formatting output"
+            )
         if not verify_token_parity(body_map, body_md_masked):
-            raise RuntimeError("Math placeholder parity check failed in body formatting output")
+            raise RuntimeError(
+                "Math placeholder parity check failed in body formatting output"
+            )
 
         # Unmask with original maps
         abstract_md = unmask_math(abstract_md_masked, abstract_map)

@@ -3,9 +3,7 @@ Simplified file-based job queue for batch translation.
 """
 
 import json
-import os
 import fcntl
-import tempfile
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
@@ -13,11 +11,11 @@ from typing import Dict, List, Optional
 
 class JobQueue:
     """Simplified file-based job queue."""
-    
+
     def __init__(self):
         self.jobs_dir = Path("data/jobs")
         self.jobs_dir.mkdir(exist_ok=True)
-    
+
     def add_jobs(self, paper_ids: List[str]) -> int:
         """Add jobs to queue."""
         added = 0
@@ -28,13 +26,13 @@ class JobQueue:
                     "id": paper_id,
                     "status": "pending",
                     "created_at": datetime.now().isoformat(),
-                    "attempts": 0
+                    "attempts": 0,
                 }
                 with open(job_file, "w") as f:
                     json.dump(job, f)
                 added += 1
         return added
-    
+
     def claim_job(self, worker_id: str) -> Optional[Dict]:
         """Claim a pending job atomically."""
         for job_file in self.jobs_dir.glob("*.json"):
@@ -43,87 +41,93 @@ class JobQueue:
                 with open(job_file, "r+") as f:
                     # Try to acquire exclusive lock
                     fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-                    
+
                     # Read job data
                     f.seek(0)
                     job = json.load(f)
-                    
+
                     # Check if still pending (another worker might have claimed it)
                     if job["status"] == "pending":
                         # Update job status atomically
                         job["status"] = "in_progress"
                         job["worker_id"] = worker_id
                         job["started_at"] = datetime.now().isoformat()
-                        
+
                         # Write updated job data
                         f.seek(0)
                         f.truncate()
                         json.dump(job, f)
                         f.flush()
-                        
+
                         return job
-                    
+
             except (OSError, IOError):
                 # File is locked by another process, try next file
                 continue
             except (json.JSONDecodeError, KeyError):
                 # Corrupted job file, skip
                 continue
-                
+
         return None
-    
+
     def complete_job(self, job_id: str):
         """Mark job as completed."""
         job_file = self.jobs_dir / f"{job_id}.json"
         if job_file.exists():
             with open(job_file, "r") as f:
                 job = json.load(f)
-            
+
             job["status"] = "completed"
             job["completed_at"] = datetime.now().isoformat()
-            
+
             with open(job_file, "w") as f:
                 json.dump(job, f)
-    
+
     def fail_job(self, job_id: str, error: str):
         """Mark job as failed."""
         job_file = self.jobs_dir / f"{job_id}.json"
         if job_file.exists():
             with open(job_file, "r") as f:
                 job = json.load(f)
-            
+
             job["attempts"] += 1
             job["last_error"] = error
-            
+
             if job["attempts"] >= 3:
                 job["status"] = "failed"
             else:
                 job["status"] = "pending"
-            
+
             with open(job_file, "w") as f:
                 json.dump(job, f)
-    
+
     def get_stats(self) -> Dict:
         """Get job statistics."""
-        stats = {"total": 0, "pending": 0, "in_progress": 0, "completed": 0, "failed": 0}
-        
+        stats = {
+            "total": 0,
+            "pending": 0,
+            "in_progress": 0,
+            "completed": 0,
+            "failed": 0,
+        }
+
         for job_file in self.jobs_dir.glob("*.json"):
             with open(job_file, "r") as f:
                 job = json.load(f)
-            
+
             stats["total"] += 1
             stats[job["status"]] += 1
-        
+
         return stats
-    
+
     def cleanup_completed(self, days: int = 7):
         """Clean up completed jobs older than specified days."""
         cutoff = datetime.now() - timedelta(days=days)
-        
+
         for job_file in self.jobs_dir.glob("*.json"):
             with open(job_file, "r") as f:
                 job = json.load(f)
-            
+
             if job["status"] == "completed":
                 try:
                     completed_at = datetime.fromisoformat(job.get("completed_at", ""))
@@ -150,12 +154,14 @@ class JobQueue:
                         "completed_at": job.get("completed_at"),
                     }
                 )
+
         # Sort by completed_at desc
         def _key(j: Dict):
             try:
                 return datetime.fromisoformat((j.get("completed_at") or ""))
             except Exception:
                 return datetime.min
+
         items.sort(key=_key, reverse=True)
         return items[:limit]
 
@@ -218,19 +224,19 @@ class JobQueue:
                     json.dump(job, f)
                 reset += 1
         return reset
-    
+
     # Removed legacy duplicate helpers below in favor of the unified versions above
-    
+
     def get_pending_job_ids(self) -> List[str]:
         """Get all pending job IDs without loading full job data."""
         pending_ids = []
         for job_file in self.jobs_dir.glob("*.json"):
             with open(job_file, "r") as f:
                 job = json.load(f)
-            
+
             if job["status"] == "pending":
                 pending_ids.append(job["id"])
-        
+
         return pending_ids
 
 

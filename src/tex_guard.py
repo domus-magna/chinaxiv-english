@@ -20,7 +20,10 @@ MATH_PATTERNS = [
     # \( ... \)
     re.compile(r"\\\((.+?)\\\)", re.DOTALL),
     # Environments: equation, align, gather, etc.
-    re.compile(r"\\begin\{(equation\*?|align\*?|gather\*?|multline\*?)\}(.+?)\\end\{\1\}", re.DOTALL),
+    re.compile(
+        r"\\begin\{(equation\*?|align\*?|gather\*?|multline\*?)\}(.+?)\\end\{\1\}",
+        re.DOTALL,
+    ),
     # Citation commands - preserve exactly
     re.compile(r"\\cite\{[^}]*\}", re.DOTALL),
     re.compile(r"\\ref\{[^}]*\}", re.DOTALL),
@@ -48,6 +51,7 @@ def mask_math(text: str) -> Tuple[str, List[Masking]]:
 
     # Apply patterns sequentially; replace matches with stable tokens
     for pat in MATH_PATTERNS:
+
         def _repl(m: re.Match) -> str:
             token = MATH_TOKEN_FMT.format(len(mappings) + 1)
             mappings.append(Masking(token=token, content=m.group(0)))

@@ -8,7 +8,6 @@ then probes only valid ranges instead of entire 00001-99999 space.
 """
 
 import argparse
-import json
 import os
 import re
 import time
@@ -38,7 +37,7 @@ class OptimizedChinaXivScraper:
             "total_attempts": 0,
             "successful_scrapes": 0,
             "failed_scrapes": 0,
-            "binary_search_requests": 0
+            "binary_search_requests": 0,
         }
 
     def fetch_page(self, url: str) -> Optional[str]:
@@ -53,23 +52,16 @@ class OptimizedChinaXivScraper:
         """
         headers = {
             "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
 
-        payload = {
-            "zone": self.zone,
-            "url": url,
-            "format": "raw"
-        }
+        payload = {"zone": self.zone, "url": url, "format": "raw"}
 
         try:
             time.sleep(self.rate_limit)
 
             response = requests.post(
-                self.api_url,
-                headers=headers,
-                json=payload,
-                timeout=60
+                self.api_url, headers=headers, json=payload, timeout=60
             )
 
             self.stats["total_attempts"] += 1
@@ -78,7 +70,7 @@ class OptimizedChinaXivScraper:
                 html = response.text
 
                 # Check for error responses
-                if '<ErrorResponseData>' in html or len(html) < 1000:
+                if "<ErrorResponseData>" in html or len(html) < 1000:
                     return None
 
                 return html
@@ -117,18 +109,18 @@ class OptimizedChinaXivScraper:
             log("Failed to fetch homepage")
             return {}
 
-        soup = BeautifulSoup(html, 'html.parser')
-        paper_links = soup.find_all('a', href=lambda x: x and '/abs/' in x)
+        soup = BeautifulSoup(html, "html.parser")
+        paper_links = soup.find_all("a", href=lambda x: x and "/abs/" in x)
 
         # Group IDs by month
         by_month = defaultdict(list)
         for link in paper_links:
-            href = link.get('href', '')
-            if '/abs/' in href:
-                paper_id = href.split('/abs/')[-1].split('?')[0]
-                if paper_id and '.' in paper_id:
+            href = link.get("href", "")
+            if "/abs/" in href:
+                paper_id = href.split("/abs/")[-1].split("?")[0]
+                if paper_id and "." in paper_id:
                     try:
-                        year_month, num_str = paper_id.split('.')
+                        year_month, num_str = paper_id.split(".")
                         num = int(num_str)
                         by_month[year_month].append(num)
                     except:
@@ -142,7 +134,9 @@ class OptimizedChinaXivScraper:
 
         return max_ids
 
-    def find_max_id_binary_search(self, year_month: str, estimated_max: int = 500) -> int:
+    def find_max_id_binary_search(
+        self, year_month: str, estimated_max: int = 500
+    ) -> int:
         """
         Use binary search to find the highest paper ID for a month.
 
@@ -176,7 +170,7 @@ class OptimizedChinaXivScraper:
 
             # Safety limit
             if self.stats["binary_search_requests"] > 20:
-                log(f"  Stopping binary search after 20 requests")
+                log("  Stopping binary search after 20 requests")
                 break
 
         # If we maxed out, try doubling and searching again
@@ -184,44 +178,50 @@ class OptimizedChinaXivScraper:
             log(f"  Hit estimated max, expanding search to {estimated_max * 2}...")
             return self.find_max_id_binary_search(year_month, estimated_max * 2)
 
-        log(f"  Found max ID: {year_month}.{max_found:05d} (took {self.stats['binary_search_requests']} requests)")
+        log(
+            f"  Found max ID: {year_month}.{max_found:05d} (took {self.stats['binary_search_requests']} requests)"
+        )
         return max_found
 
     def parse_paper(self, html: str, paper_id: str) -> Optional[Dict]:
         """Parse paper metadata from HTML."""
         try:
-            soup = BeautifulSoup(html, 'html.parser')
+            soup = BeautifulSoup(html, "html.parser")
 
             # Title
-            title_elem = soup.find('h1')
+            title_elem = soup.find("h1")
             title = title_elem.get_text(strip=True) if title_elem else ""
 
             if not title or len(title) < 10:
                 return None
 
             # Authors
-            author_links = soup.find_all('a', href=lambda x: x and 'field=author' in x)
-            creators = [link.get_text(strip=True) for link in author_links if link.get_text(strip=True)]
+            author_links = soup.find_all("a", href=lambda x: x and "field=author" in x)
+            creators = [
+                link.get_text(strip=True)
+                for link in author_links
+                if link.get_text(strip=True)
+            ]
 
             # Abstract
             abstract = ""
-            abstract_marker = soup.find('b', string=re.compile(r'摘要[:：]'))
+            abstract_marker = soup.find("b", string=re.compile(r"摘要[:：]"))
             if abstract_marker:
                 parent = abstract_marker.parent
                 if parent:
                     full_text = parent.get_text(strip=False)
-                    match = re.search(r'摘要[:：]\s*(.+)', full_text, re.DOTALL)
+                    match = re.search(r"摘要[:：]\s*(.+)", full_text, re.DOTALL)
                     if match:
                         abstract = match.group(1).strip()
 
             # Submission date
             date_str = ""
-            date_marker = soup.find('b', string=re.compile(r'提交时间[:：]'))
+            date_marker = soup.find("b", string=re.compile(r"提交时间[:：]"))
             if date_marker:
                 parent = date_marker.parent
                 if parent:
                     text = parent.get_text(strip=True)
-                    match = re.search(r'提交时间[:：]\s*(.+)', text)
+                    match = re.search(r"提交时间[:：]\s*(.+)", text)
                     if match:
                         date_str = match.group(1).strip()
 
@@ -238,19 +238,23 @@ class OptimizedChinaXivScraper:
 
             # Category/Subjects
             subjects = []
-            category_marker = soup.find('b', string=re.compile(r'分类[:：]'))
+            category_marker = soup.find("b", string=re.compile(r"分类[:：]"))
             if category_marker:
                 parent = category_marker.parent
                 if parent:
-                    category_links = parent.find_all('a')
-                    subjects = [link.get_text(strip=True) for link in category_links if link.get_text(strip=True)]
+                    category_links = parent.find_all("a")
+                    subjects = [
+                        link.get_text(strip=True)
+                        for link in category_links
+                        if link.get_text(strip=True)
+                    ]
 
             # PDF URL
             pdf_url = ""
-            pdf_link = soup.find('a', href=lambda x: x and 'filetype=pdf' in x)
+            pdf_link = soup.find("a", href=lambda x: x and "filetype=pdf" in x)
             if pdf_link:
-                href = pdf_link.get('href', '')
-                if href.startswith('/'):
+                href = pdf_link.get("href", "")
+                if href.startswith("/"):
                     pdf_url = f"https://chinaxiv.org{href}"
                 else:
                     pdf_url = href
@@ -266,11 +270,8 @@ class OptimizedChinaXivScraper:
                 "date": date_iso or f"{paper_id[:4]}-{paper_id[4:6]}-01T00:00:00Z",
                 "source_url": f"https://chinaxiv.org/abs/{paper_id}",
                 "pdf_url": pdf_url,
-                "license": {
-                    "raw": "",
-                    "derivatives_allowed": None
-                },
-                "setSpec": None
+                "license": {"raw": "", "derivatives_allowed": None},
+                "setSpec": None,
             }
 
             return record
@@ -296,10 +297,7 @@ class OptimizedChinaXivScraper:
             return None
 
     def scrape_month_optimized(
-        self,
-        year_month: str,
-        max_id: int,
-        checkpoint: Optional[Dict] = None
+        self, year_month: str, max_id: int, checkpoint: Optional[Dict] = None
     ) -> List[Dict]:
         """
         Scrape papers for a month using known max ID.
@@ -348,7 +346,7 @@ class OptimizedChinaXivScraper:
             "year_month": year_month,
             "last_id_num": last_id_num,
             "papers": papers,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
 
         checkpoint_path = str(checkpoint_dir / f"chinaxiv_opt_{year_month}.json")
@@ -379,7 +377,9 @@ def run_cli():
     parser.add_argument("--month", help="Single month to scrape (YYYYMM)")
     parser.add_argument("--resume", action="store_true", help="Resume from checkpoint")
     parser.add_argument("--dry-run", action="store_true", help="Test mode")
-    parser.add_argument("--rate-limit", type=float, default=0.5, help="Seconds between requests")
+    parser.add_argument(
+        "--rate-limit", type=float, default=0.5, help="Seconds between requests"
+    )
     args = parser.parse_args()
 
     # Load environment
@@ -440,7 +440,9 @@ def run_cli():
             checkpoint = scraper._load_checkpoint(year_month)
 
         # Scrape month with known max
-        papers = scraper.scrape_month_optimized(year_month, max_id, checkpoint=checkpoint)
+        papers = scraper.scrape_month_optimized(
+            year_month, max_id, checkpoint=checkpoint
+        )
 
         # Save results (unless dry-run)
         if not args.dry_run:
@@ -451,14 +453,16 @@ def run_cli():
         log(f"  Total attempts: {scraper.stats['total_attempts']}")
         log(f"  Successful: {scraper.stats['successful_scrapes']}")
         log(f"  Failed: {scraper.stats['failed_scrapes']}")
-        log(f"  Hit rate: {scraper.stats['successful_scrapes'] / max(1, scraper.stats['total_attempts']) * 100:.1f}%")
+        log(
+            f"  Hit rate: {scraper.stats['successful_scrapes'] / max(1, scraper.stats['total_attempts']) * 100:.1f}%"
+        )
 
         # Reset stats for next month
         scraper.stats = {
             "total_attempts": 0,
             "successful_scrapes": 0,
             "failed_scrapes": 0,
-            "binary_search_requests": 0
+            "binary_search_requests": 0,
         }
 
     log("\nOptimized harvest complete!")
