@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import io
 import os
 import re
 import tarfile
@@ -68,9 +67,11 @@ def extract_from_latex(archive_path: str) -> Optional[List[str]]:
         if archive_path.lower().endswith(".zip"):
             with zipfile.ZipFile(archive_path) as zf:
                 names = zf.namelist()
+
                 def read_file(n):
                     with zf.open(n) as f:
                         return f.read().decode("utf-8", errors="ignore")
+
                 main = _find_main_tex(names, read_file)
                 if not main:
                     return None
@@ -78,10 +79,12 @@ def extract_from_latex(archive_path: str) -> Optional[List[str]]:
         else:
             with tarfile.open(archive_path, "r:gz") as tf:
                 names = [m.name for m in tf.getmembers() if m.isfile()]
+
                 def read_file(n):
                     member = tf.getmember(n)
                     with tf.extractfile(member) as f:
                         return f.read().decode("utf-8", errors="ignore")
+
                 main = _find_main_tex(names, read_file)
                 if not main:
                     return None
@@ -98,6 +101,7 @@ def extract_from_pdf(pdf_path: str) -> Optional[List[str]]:
         return None
     try:
         from pdfminer.high_level import extract_text
+
         txt = extract_text(pdf_path) or ""
     except Exception as e:
         log(f"pdf extract failed: {e}")
@@ -118,4 +122,3 @@ def extract_body_paragraphs(rec: dict) -> List[str]:
     if paras:
         return paras
     return []
-

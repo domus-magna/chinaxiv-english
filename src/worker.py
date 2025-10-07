@@ -31,7 +31,7 @@ class BackgroundWorker:
         pid_dir.mkdir(parents=True, exist_ok=True)
 
         pid_file = pid_dir / f"{self.worker_id}.pid"
-        with open(pid_file, 'w') as f:
+        with open(pid_file, "w") as f:
             f.write(str(self.pid))
 
         log(f"[{self.worker_id}] Started (PID: {self.pid})")
@@ -76,11 +76,11 @@ class BackgroundWorker:
                     sys.executable,
                     "scripts/evaluate_translation.py",
                     f"data/translated/{paper_id}.json",
-                    "--store-db"
+                    "--store-db",
                 ],
                 capture_output=True,
                 text=True,
-                timeout=120  # 2 min timeout
+                timeout=120,  # 2 min timeout
             )
 
             if result.returncode != 0:
@@ -93,7 +93,7 @@ class BackgroundWorker:
         """Main worker loop."""
         # Load environment variables from .env (override existing)
         load_dotenv(override=True)
-        
+
         # Setup
         self.write_pid_file()
 
@@ -126,9 +126,9 @@ class BackgroundWorker:
             self.idle_cycles = 0
 
             # Process job
-            job_id = job['id']
-            paper_id = job['paper_id']
-            attempts = job['attempts']
+            job_id = job["id"]
+            paper_id = job["paper_id"]
+            attempts = job["attempts"]
 
             log(f"[{self.worker_id}] Processing {paper_id} (attempt {attempts + 1})")
 
@@ -146,7 +146,9 @@ class BackgroundWorker:
                 job_queue.increment_worker_jobs(self.worker_id)
                 self.jobs_processed += 1
 
-                log(f"[{self.worker_id}] Completed {paper_id} ({self.jobs_processed} total)")
+                log(
+                    f"[{self.worker_id}] Completed {paper_id} ({self.jobs_processed} total)"
+                )
 
             except Exception as e:
                 error_msg = str(e)

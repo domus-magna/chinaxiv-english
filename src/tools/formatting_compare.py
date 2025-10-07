@@ -6,6 +6,7 @@ After: LLM formatting pass (math-safe). Fails loudly if LLM unavailable.
 
 Outputs side-by-side HTML pages into `site/samples/` and an index page.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -17,6 +18,7 @@ from typing import Any, Dict, List, Tuple
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from ..utils import ensure_dir, read_json, write_text
+
 # Removed heuristic formatting imports - LLM formatting only
 from ..services.formatting_service import FormattingService
 from ..config import get_config
@@ -30,7 +32,11 @@ def pick_candidates(count: int) -> List[str]:
         try:
             with open(p, "r", encoding="utf-8") as f:
                 d = json.load(f)
-            if d.get("body_en") and isinstance(d.get("body_en"), list) and len(d["body_en"]) > 20:
+            if (
+                d.get("body_en")
+                and isinstance(d.get("body_en"), list)
+                and len(d["body_en"]) > 20
+            ):
                 selected.append(d["id"])  # id should match filename stem
                 if len(selected) >= count:
                     break
@@ -52,7 +58,9 @@ def pick_candidates(count: int) -> List[str]:
     return selected
 
 
-def build_markdown_variants(rec: Dict[str, Any]) -> Tuple[Dict[str, str], Dict[str, str], str]:
+def build_markdown_variants(
+    rec: Dict[str, Any]
+) -> Tuple[Dict[str, str], Dict[str, str], str]:
     """Return (before_md, after_md, note). Each is a dict with 'abstract' and 'body'."""
     # Before: Raw unformatted translation
     before_abs = rec.get("abstract_en") or ""
@@ -76,7 +84,13 @@ def build_markdown_variants(rec: Dict[str, Any]) -> Tuple[Dict[str, str], Dict[s
     return before, after, note
 
 
-def render_sample_page(item: Dict[str, Any], before: Dict[str, str], after: Dict[str, str], note: str, out_dir: str) -> None:
+def render_sample_page(
+    item: Dict[str, Any],
+    before: Dict[str, str],
+    after: Dict[str, str],
+    note: str,
+    out_dir: str,
+) -> None:
     env = Environment(
         loader=FileSystemLoader(os.path.join("src", "templates")),
         autoescape=select_autoescape(["html", "xml"]),
@@ -152,7 +166,7 @@ def render_sample_page(item: Dict[str, Any], before: Dict[str, str], after: Dict
 
 
 def render_index(ids: List[str], out_dir: str) -> None:
-    links = "\n".join(f"<li><a href=\"{pid}.html\">{pid}</a></li>" for pid in ids)
+    links = "\n".join(f'<li><a href="{pid}.html">{pid}</a></li>' for pid in ids)
     html = """
     <!doctype html>
     <html><head><meta charset='utf-8'/><title>Formatting Samples</title>
@@ -162,15 +176,26 @@ def render_index(ids: List[str], out_dir: str) -> None:
     <ol>{links}</ol>
     <p>Open each link to compare unformatted vs LLM formatting.</p>
     </body></html>
-    """.format(links=links)
+    """.format(
+        links=links
+    )
     ensure_dir(out_dir)
     write_text(os.path.join(out_dir, "index.html"), html)
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Generate before/after formatting samples")
-    parser.add_argument("--ids", nargs="*", help="Paper IDs to include (defaults to auto-pick)")
-    parser.add_argument("--count", type=int, default=3, help="How many to auto-pick if --ids not provided")
+    parser = argparse.ArgumentParser(
+        description="Generate before/after formatting samples"
+    )
+    parser.add_argument(
+        "--ids", nargs="*", help="Paper IDs to include (defaults to auto-pick)"
+    )
+    parser.add_argument(
+        "--count",
+        type=int,
+        default=3,
+        help="How many to auto-pick if --ids not provided",
+    )
     args = parser.parse_args()
 
     ids: List[str] = args.ids or pick_candidates(args.count)

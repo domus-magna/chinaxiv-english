@@ -1,10 +1,11 @@
 """
 Configuration management for ChinaXiv English translation.
 """
+
 from __future__ import annotations
 
 import os
-from typing import Any, Dict, Optional
+from typing import Optional
 
 import yaml
 
@@ -18,16 +19,18 @@ def load_yaml(path: str) -> dict:
 # Global configuration cache
 _CONFIG_CACHE: Optional[dict] = None
 _CONFIG_MTIME: Optional[float] = None
-_DOTENV_LOADED: bool = False  # retained for backward compatibility; no longer used to short-circuit loads
+_DOTENV_LOADED: bool = (
+    False  # retained for backward compatibility; no longer used to short-circuit loads
+)
 
 
 def get_config(path: str = os.path.join("src", "config.yaml")) -> dict:
     """
     Get configuration with caching.
-    
+
     Args:
         path: Path to config file
-        
+
     Returns:
         Configuration dictionary
     """
@@ -36,10 +39,10 @@ def get_config(path: str = os.path.join("src", "config.yaml")) -> dict:
         mtime = os.path.getmtime(path)
     except FileNotFoundError:
         return {}
-    
+
     if _CONFIG_CACHE is not None and _CONFIG_MTIME == mtime:
         return _CONFIG_CACHE
-    
+
     cfg = load_yaml(path)
     _CONFIG_CACHE = cfg
     _CONFIG_MTIME = mtime
@@ -49,9 +52,9 @@ def get_config(path: str = os.path.join("src", "config.yaml")) -> dict:
 def load_dotenv(path: str = ".env", *, override: bool = False) -> None:
     """
     Minimal .env loader: KEY=VALUE lines, ignores comments and blanks.
-    
+
     If override=False, existing environment variables are not overwritten.
-    
+
     Args:
         path: Path to .env file
         override: Whether to override existing environment variables
@@ -78,11 +81,11 @@ def load_dotenv(path: str = ".env", *, override: bool = False) -> None:
 def getenv_bool(key: str, default: bool = False) -> bool:
     """
     Get boolean environment variable.
-    
+
     Args:
         key: Environment variable name
         default: Default value if not set
-        
+
     Returns:
         Boolean value
     """

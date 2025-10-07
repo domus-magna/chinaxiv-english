@@ -9,7 +9,6 @@ from __future__ import annotations
 import argparse
 import os
 import time
-from pathlib import Path
 from typing import Dict, List, Optional
 
 from tenacity import retry, stop_after_attempt, wait_exponential
@@ -47,7 +46,7 @@ def download_pdf(url: str, output_path: str) -> bool:
 
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
-        with open(output_path, 'wb') as f:
+        with open(output_path, "wb") as f:
             for chunk in resp.iter_content(chunk_size=8192):
                 if not chunk:
                     continue
@@ -64,7 +63,9 @@ def fix_pdf_url(pdf_url: str, paper_id: str) -> str:
     return pdf_url
 
 
-def process_paper(paper_id: str, pdf_url: str, pdf_dir: str = "data/pdfs") -> Optional[Dict]:
+def process_paper(
+    paper_id: str, pdf_url: str, pdf_dir: str = "data/pdfs"
+) -> Optional[Dict]:
     """
     Download PDF and extract text for a single paper.
 
@@ -104,7 +105,7 @@ def process_paper(paper_id: str, pdf_url: str, pdf_dir: str = "data/pdfs") -> Op
         "pdf_path": pdf_path,
         "paragraphs": paragraphs,
         "num_paragraphs": len(paragraphs),
-        "total_chars": sum(len(p) for p in paragraphs)
+        "total_chars": sum(len(p) for p in paragraphs),
     }
 
 
@@ -112,7 +113,7 @@ def batch_download_and_extract(
     paper_ids: List[str],
     records_file: str = "data/records/ia_all_20251004_215726.json",
     pdf_dir: str = "data/pdfs",
-    output_file: Optional[str] = None
+    output_file: Optional[str] = None,
 ) -> Dict[str, Dict]:
     """
     Download and extract text from multiple papers.
@@ -128,7 +129,7 @@ def batch_download_and_extract(
     """
     # Load records
     records = read_json(records_file)
-    id_to_rec = {r['id']: r for r in records}
+    id_to_rec = {r["id"]: r for r in records}
 
     results = {}
 
@@ -138,7 +139,7 @@ def batch_download_and_extract(
             continue
 
         rec = id_to_rec[paper_id]
-        pdf_url = rec.get('pdf_url')
+        pdf_url = rec.get("pdf_url")
 
         if not pdf_url:
             log(f"No PDF URL for {paper_id}")
@@ -163,8 +164,9 @@ def run_cli():
     """CLI entry point."""
     parser = argparse.ArgumentParser(description="Download PDFs and extract text")
     parser.add_argument("--paper-ids", nargs="+", help="Specific paper IDs to process")
-    parser.add_argument("--records", default="data/records/records.json",
-                       help="Path to records JSON")
+    parser.add_argument(
+        "--records", default="data/records/records.json", help="Path to records JSON"
+    )
     parser.add_argument("--pdf-dir", default="data/pdfs", help="Directory for PDFs")
     parser.add_argument("--output", help="Output JSON file for extraction results")
     parser.add_argument("--test", action="store_true", help="Test on first 10 papers")
@@ -174,7 +176,7 @@ def run_cli():
     if args.test:
         # Get first 10 papers from records
         records = read_json(args.records)
-        paper_ids = [r['id'] for r in records[:10]]
+        paper_ids = [r["id"] for r in records[:10]]
         log(f"Testing on {len(paper_ids)} papers")
     elif args.paper_ids:
         paper_ids = args.paper_ids
@@ -185,15 +187,15 @@ def run_cli():
         paper_ids=paper_ids,
         records_file=args.records,
         pdf_dir=args.pdf_dir,
-        output_file=args.output
+        output_file=args.output,
     )
 
     log(f"\nProcessed {len(results)}/{len(paper_ids)} papers successfully")
 
     # Show summary
     if results:
-        total_paras = sum(r['num_paragraphs'] for r in results.values())
-        total_chars = sum(r['total_chars'] for r in results.values())
+        total_paras = sum(r["num_paragraphs"] for r in results.values())
+        total_chars = sum(r["total_chars"] for r in results.values())
         log(f"Total paragraphs: {total_paras:,}")
         log(f"Total characters: {total_chars:,}")
 

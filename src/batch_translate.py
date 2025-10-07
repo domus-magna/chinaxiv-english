@@ -3,47 +3,51 @@ CLI controller for batch translation system.
 """
 
 import argparse
-import json
 import os
 import signal
-import subprocess
-import sys
 import time
-from datetime import datetime
 from pathlib import Path
 from typing import List
 
 from .job_queue import job_queue
 from .streaming import process_papers_streaming
 from .utils import log
-from .monitoring import alert_info, alert_warning, alert_error, alert_critical
+from .monitoring import alert_info, alert_warning
 
 
 def harvest_papers(years: List[str]) -> List[str]:
     """Harvesting via Internet Archive has been removed. Provide IDs via custom means."""
-    raise NotImplementedError("Internet Archive harvesting removed. Use custom ingestion.")
+    raise NotImplementedError(
+        "Internet Archive harvesting removed. Use custom ingestion."
+    )
 
 
-def init_queue(years: List[str], limit: int = None, use_harvested: bool = False) -> None:
+def init_queue(
+    years: List[str], limit: int = None, use_harvested: bool = False
+) -> None:
     """Initialize job queue with papers."""
     # Job queue is file-based, no schema initialization needed
 
     # Load papers from harvested records
     if use_harvested:
         import glob
+
         records_dir = "data/records"
         rec_files = glob.glob(os.path.join(records_dir, "*.json"))
 
         if not rec_files:
-            log("No records found under data/records. Please provide records before initializing queue.")
+            log(
+                "No records found under data/records. Please provide records before initializing queue."
+            )
             paper_ids = []
         else:
             # Sort by modification time, newest first
             rec_files = sorted(rec_files, key=os.path.getmtime, reverse=True)
             log(f"Loading from records: {os.path.basename(rec_files[0])}")
             from .utils import read_json
+
             records = read_json(rec_files[0])
-            paper_ids = [r['id'] for r in records]
+            paper_ids = [r["id"] for r in records]
             log(f"Loaded {len(paper_ids)} papers from records")
     else:
         paper_ids = []
@@ -60,22 +64,22 @@ def init_queue(years: List[str], limit: int = None, use_harvested: bool = False)
 def start_workers(num_workers: int) -> None:
     """Process jobs using streaming to reduce memory usage."""
     log(f"Processing jobs using streaming (workers={num_workers} for compatibility)...")
-    
+
     # Get pending jobs
     stats = job_queue.get_stats()
-    if stats['pending'] == 0:
+    if stats["pending"] == 0:
         log("No pending jobs to process")
         return
-    
+
     log(f"Processing {stats['pending']} pending jobs...")
-    
+
     # Get all pending paper IDs using queue abstraction
     pending_ids = job_queue.get_pending_job_ids()
-    
+
     # Process papers one at a time
     completed = 0
     failed = 0
-    
+
     try:
         for result in process_papers_streaming(pending_ids):
             if result["status"] == "completed":
@@ -84,20 +88,27 @@ def start_workers(num_workers: int) -> None:
             else:
                 failed += 1
                 job_queue.fail_job(result["id"], result.get("error", "Unknown error"))
-            
+
             if (completed + failed) % 10 == 0:
                 log(f"Progress: {completed + failed}/{len(pending_ids)} processed")
-                
+
     except KeyboardInterrupt:
         log("Interrupted by user")
-    
+
     # Final stats
-    log(f"Processing complete: {completed}/{len(pending_ids)} completed, {failed} failed")
-    
+    log(
+        f"Processing complete: {completed}/{len(pending_ids)} completed, {failed} failed"
+    )
+
     if failed > 0:
-        alert_warning("Processing Completed with Failures", f"Processing completed with {failed} failures")
+        alert_warning(
+            "Processing Completed with Failures",
+            f"Processing completed with {failed} failures",
+        )
     else:
-        alert_info("Processing Completed Successfully", "Processing completed successfully")
+        alert_info(
+            "Processing Completed Successfully", "Processing completed successfully"
+        )
 
 
 def stop_workers() -> None:
@@ -129,14 +140,14 @@ def stop_workers() -> None:
 
     # Wait for graceful shutdown
     time.sleep(2)
-    
+
     # Send alert about worker shutdown
     if pid_files:
         alert_warning(
             "Workers Stopped",
             f"Stopped {len(pid_files)} translation workers",
             source="batch_translate",
-            metadata={"stopped_count": len(pid_files)}
+            metadata={"stopped_count": len(pid_files)},
         )
 
     # Check if any still running
@@ -167,7 +178,11 @@ def show_status() -> None:
     print("BATCH TRANSLATION STATUS")
     print("=" * 60)
     print(f"Total Jobs:     {stats['total']:,}")
-    print(f"Completed:      {stats['completed']:,} ({stats['completed']/stats['total']*100:.1f}%)" if stats['total'] > 0 else "Completed:      0 (0%)")
+    print(
+        f"Completed:      {stats['completed']:,} ({stats['completed']/stats['total']*100:.1f}%)"
+        if stats["total"] > 0
+        else "Completed:      0 (0%)"
+    )
     print(f"In Progress:    {stats['in_progress']:,}")
     print(f"Pending:        {stats['pending']:,}")
     print(f"Failed:         {stats['failed']:,}")
@@ -182,9 +197,9 @@ def show_status() -> None:
         print("Active Workers: 0")
 
     # Estimated time
-    if stats['completed'] > 0 and stats['pending'] > 0:
+    if stats["completed"] > 0 and stats["pending"] > 0:
         # Rough estimate: 25 seconds per paper
-        est_seconds = stats['pending'] * 25
+        est_seconds = stats["pending"] * 25
         est_minutes = est_seconds / 60
         print(f"Est. Time:      {est_minutes:.0f} minutes")
 
@@ -199,7 +214,7 @@ def watch_status() -> None:
     try:
         while True:
             # Clear screen
-            os.system('clear' if os.name != 'nt' else 'cls')
+            os.system("clear" if os.name != "nt" else "cls")
 
             # Show stats
             show_status()
@@ -209,7 +224,7 @@ def watch_status() -> None:
             if recent:
                 print("Recent Completions:")
                 for r in recent:
-                    ts = r['completed_at'][:19] if r['completed_at'] else 'N/A'
+                    ts = r["completed_at"][:19] if r["completed_at"] else "N/A"
                     print(f"  [{ts}] {r['paper_id']} ({r['worker_id']})")
                 print()
 
@@ -229,8 +244,8 @@ def resume() -> None:
 
     # Restart workers
     stats = job_queue.get_stats()
-    if stats['pending'] > 0:
-        num_workers = min(10, stats['pending'])
+    if stats["pending"] > 0:
+        num_workers = min(10, stats["pending"])
         start_workers(num_workers)
 
 
@@ -272,63 +287,75 @@ def retry_failed(num_workers: int) -> None:
 def run_cli() -> None:
     """CLI entry point."""
     parser = argparse.ArgumentParser(description="Batch translation system")
-    subparsers = parser.add_subparsers(dest='command', required=True)
+    subparsers = parser.add_subparsers(dest="command", required=True)
 
     # Init command
-    init_parser = subparsers.add_parser('init', help='Initialize job queue')
-    init_parser.add_argument('--years', default='2024,2025', help='Years to harvest (comma-separated)')
-    init_parser.add_argument('--limit', type=int, help='Limit number of jobs (for testing)')
-    init_parser.add_argument('--use-harvested', action='store_true', help='Use existing harvested IA records instead of re-harvesting')
+    init_parser = subparsers.add_parser("init", help="Initialize job queue")
+    init_parser.add_argument(
+        "--years", default="2024,2025", help="Years to harvest (comma-separated)"
+    )
+    init_parser.add_argument(
+        "--limit", type=int, help="Limit number of jobs (for testing)"
+    )
+    init_parser.add_argument(
+        "--use-harvested",
+        action="store_true",
+        help="Use existing harvested IA records instead of re-harvesting",
+    )
 
     # Start command
-    start_parser = subparsers.add_parser('start', help='Start worker processes')
-    start_parser.add_argument('--workers', type=int, default=10, help='Number of workers')
+    start_parser = subparsers.add_parser("start", help="Start worker processes")
+    start_parser.add_argument(
+        "--workers", type=int, default=10, help="Number of workers"
+    )
 
     # Stop command
-    subparsers.add_parser('stop', help='Stop all workers')
+    subparsers.add_parser("stop", help="Stop all workers")
 
     # Status command
-    subparsers.add_parser('status', help='Show queue status')
+    subparsers.add_parser("status", help="Show queue status")
 
     # Watch command
-    subparsers.add_parser('watch', help='Watch status (live updates)')
+    subparsers.add_parser("watch", help="Watch status (live updates)")
 
     # Resume command
-    subparsers.add_parser('resume', help='Resume from crash')
+    subparsers.add_parser("resume", help="Resume from crash")
 
     # Failed command
-    subparsers.add_parser('failed', help='Show failed jobs')
+    subparsers.add_parser("failed", help="Show failed jobs")
 
     # Retry command
-    retry_parser = subparsers.add_parser('retry', help='Retry failed jobs')
-    retry_parser.add_argument('--workers', type=int, default=10, help='Number of workers')
+    retry_parser = subparsers.add_parser("retry", help="Retry failed jobs")
+    retry_parser.add_argument(
+        "--workers", type=int, default=10, help="Number of workers"
+    )
 
     args = parser.parse_args()
 
     # Execute command
-    if args.command == 'init':
-        years = args.years.split(',')
+    if args.command == "init":
+        years = args.years.split(",")
         init_queue(years, limit=args.limit, use_harvested=args.use_harvested)
 
-    elif args.command == 'start':
+    elif args.command == "start":
         start_workers(args.workers)
 
-    elif args.command == 'stop':
+    elif args.command == "stop":
         stop_workers()
 
-    elif args.command == 'status':
+    elif args.command == "status":
         show_status()
 
-    elif args.command == 'watch':
+    elif args.command == "watch":
         watch_status()
 
-    elif args.command == 'resume':
+    elif args.command == "resume":
         resume()
 
-    elif args.command == 'failed':
+    elif args.command == "failed":
         show_failed()
 
-    elif args.command == 'retry':
+    elif args.command == "retry":
         retry_failed(args.workers)
 
 
