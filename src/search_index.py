@@ -11,8 +11,17 @@ from .models import Translation
 
 
 def build_index(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Build search index entries from translation dicts.
+
+    Skips QA-flagged translations to align with renderer behavior
+    (renderer excludes items where _qa_status != 'pass').
+    """
     idx: List[Dict[str, Any]] = []
     for item_data in items:
+        qa_status = item_data.get("_qa_status", "pass")
+        if qa_status != "pass":
+            # Skip flagged to prevent search hits pointing to non-rendered items
+            continue
         translation = Translation.from_dict(item_data)
         idx.append(translation.get_search_index_entry())
     return idx
@@ -28,9 +37,14 @@ def run_cli() -> None:
     with open(out_path, "w", encoding="utf-8") as f:
         f.write("[")
         first = True
+        flagged_skipped = 0
         for p in translated_paths:
             try:
                 item_data = read_json(p)
+                qa_status = item_data.get("_qa_status", "pass")
+                if qa_status != "pass":
+                    flagged_skipped += 1
+                    continue
                 entry = Translation.from_dict(item_data).get_search_index_entry()
                 if not first:
                     f.write(",")
@@ -78,6 +92,8 @@ def run_cli() -> None:
     )
 
     log(f"Wrote search index with {count} entries → {out_path}")
+    if flagged_skipped:
+        log(f"Skipped {flagged_skipped} QA-flagged translations when building search index")
     log(
         f"Compressed index: {compressed_size:,} bytes ({compression_ratio:.1f}% reduction) → {compressed_path}"
     )
