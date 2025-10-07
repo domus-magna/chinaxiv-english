@@ -14,8 +14,23 @@ from .utils import ensure_dir, log, read_json, write_text
 
 def load_translated() -> List[Dict[str, Any]]:
     items: List[Dict[str, Any]] = []
+    flagged_count = 0
+    
     for path in sorted(glob.glob(os.path.join("data", "translated", "*.json"))):
-        items.append(read_json(path))
+        item = read_json(path)
+        
+        # Skip items flagged by QA filter
+        qa_status = item.get('_qa_status', 'pass')
+        if qa_status != 'pass':
+            flagged_count += 1
+            log(f"Skipping flagged translation: {item.get('id', 'unknown')} ({qa_status})")
+            continue
+            
+        items.append(item)
+    
+    if flagged_count > 0:
+        log(f"Skipped {flagged_count} flagged translations")
+    
     return items
 
 

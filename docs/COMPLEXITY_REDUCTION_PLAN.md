@@ -254,11 +254,10 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
-          # Harvest from Internet Archive
-          python -m src.harvest_ia --limit ${{ inputs.limit || 5 }} || true
+          # Harvest removed (Internet Archive). Proceed with existing records, if any.
           
           # Find latest records
-          latest=$(ls -1t data/records/ia_*.json 2>/dev/null | head -n1 || echo '')
+          latest=$(ls -1t data/records/*.json 2>/dev/null | head -n1 || echo '')
           if [ -n "$latest" ]; then
             python -m src.select_and_fetch --records "$latest" --limit ${{ inputs.limit || 5 }} --output data/selected.json || true
           else

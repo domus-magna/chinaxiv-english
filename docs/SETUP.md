@@ -13,6 +13,7 @@
 - Node.js 18+
 - Cloudflare account
 - OpenRouter API key
+- BrightData account (Web Unlocker) with zone configured
 
 ### Installation
 ```bash
@@ -39,14 +40,19 @@ nano .env
 
 #### Required Environment Variables
 - `OPENROUTER_API_KEY`: Your OpenRouter API key for translations
+- `BRIGHTDATA_API_KEY`: BrightData API key (for harvesting)
+- `BRIGHTDATA_ZONE`: BrightData zone name (for harvesting)
 - `DISCORD_WEBHOOK_URL`: Discord webhook for notifications (optional)
 - `MONITORING_USERNAME`: Username for monitoring dashboard (default: admin)
 - `MONITORING_PASSWORD`: Password for monitoring dashboard (default: chinaxiv2024)
 
 ### First Run
 ```bash
-# Run pipeline
-python -m src.pipeline --limit 5
+# Harvest current month via BrightData (optimized; optional if records provided)
+python -m src.harvest_chinaxiv_optimized --month $(date -u +"%Y%m")
+
+# Run pipeline (translates selected items; omit --limit to process all)
+python -m src.pipeline --workers 10 --limit 5
 
 # Build site
 python -m src.render
@@ -166,13 +172,11 @@ python -m src.batch_translate status
 python -m src.batch_translate stop
 ```
 
-### Custom Harvesting
+### Preparing Records
+If you don’t use BrightData, provide normalized records JSON under `data/records/` via your own harvester or manual curation. Then:
 ```bash
-# Harvest from Internet Archive
-python -m src.harvest_ia --limit 100
-
-# Select and fetch papers
-python -m src.select_and_fetch --records data/records/ia_20241005.json --limit 50
+# Select and fetch papers (from your records)
+python -m src.select_and_fetch --records data/records/<your_records>.json --limit 50
 
 # Translate selected papers
 python -m src.pipeline --limit 50

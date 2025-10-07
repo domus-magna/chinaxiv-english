@@ -2,7 +2,7 @@
 """
 PDF Download + Text Extraction Pipeline
 
-Downloads PDFs from archive.org URLs and extracts text using pdfminer.
+Downloads PDFs from provided URLs and extracts text using pdfminer.
 """
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ def download_pdf(url: str, output_path: str) -> bool:
     Download a PDF from a URL.
 
     Args:
-        url: PDF URL (e.g., archive.org)
+        url: PDF URL
         output_path: Local path to save PDF
 
     Returns:
@@ -60,29 +60,7 @@ def download_pdf(url: str, output_path: str) -> bool:
 
 
 def fix_pdf_url(pdf_url: str, paper_id: str) -> str:
-    """
-    Fix archive.org PDF URLs which may have incorrect filenames.
-
-    Archive.org stores files as: YYYYMM.NNNNNvV.pdf (lowercase v)
-    But IA records may have: ChinaXiv-YYYYMM.NNNNNVV.pdf (with prefix, uppercase V)
-
-    Args:
-        pdf_url: Original PDF URL from IA records
-        paper_id: Paper ID (e.g., ia-ChinaXiv-201705.00829V5)
-
-    Returns:
-        Corrected PDF URL
-    """
-    # Extract the ChinaXiv ID (e.g., 201705.00829V5)
-    if paper_id.startswith('ia-ChinaXiv-'):
-        chinaxiv_id = paper_id.replace('ia-ChinaXiv-', '')
-        # Convert to lowercase v format: 201705.00829v5
-        corrected_id = chinaxiv_id.replace('V', 'v').lower()
-        # Reconstruct URL
-        item_name = f"ChinaXiv-{chinaxiv_id}"
-        corrected_url = f"https://archive.org/download/{item_name}/{corrected_id}.pdf"
-        return corrected_url
-
+    """Return PDF URL unchanged (no IA-specific rewriting)."""
     return pdf_url
 
 
@@ -170,8 +148,8 @@ def batch_download_and_extract(
         if result:
             results[paper_id] = result
 
-        # Rate limit to be nice to archive.org
-        time.sleep(0.5)
+        # Optional pacing for remote servers
+        time.sleep(0.2)
 
     # Save results
     if output_file:
@@ -185,7 +163,7 @@ def run_cli():
     """CLI entry point."""
     parser = argparse.ArgumentParser(description="Download PDFs and extract text")
     parser.add_argument("--paper-ids", nargs="+", help="Specific paper IDs to process")
-    parser.add_argument("--records", default="data/records/ia_all_20251004_215726.json",
+    parser.add_argument("--records", default="data/records/records.json",
                        help="Path to records JSON")
     parser.add_argument("--pdf-dir", default="data/pdfs", help="Directory for PDFs")
     parser.add_argument("--output", help="Output JSON file for extraction results")

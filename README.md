@@ -27,8 +27,11 @@ See [SETUP.md](docs/SETUP.md) for detailed instructions.
 - [Workflows](docs/WORKFLOWS.md) - GitHub Actions workflows
 - [PRD](docs/PRD.md) - Product requirements document
 
+### Backfill by Month
+Use the "backfill-month" GitHub Actions workflow to backfill a single month (YYYYMM). It harvests optimized, selects unseen items, translates all in parallel, and can optionally deploy to Cloudflare Pages. The workflow also persists cross-job dedupe by committing `data/seen.json` back to the repo after a successful run.
+
 ## Architecture
-- **Harvesting**: Internet Archive ChinaXiv mirror collection
+- **Harvesting**: ChinaXiv via BrightData Web Unlocker (default)
 - **Translation**: OpenRouter API with DeepSeek V3.2-Exp model
 - **Deployment**: Cloudflare Pages with GitHub Actions
 - **Monitoring**: Consolidated monitoring service with alerts, analytics, and performance metrics
@@ -58,7 +61,8 @@ Visit our [donation page](https://chinaxiv-english.pages.dev/donation.html) for 
 ## Configuration
 
 - `OPENROUTER_API_KEY` must be set in CI secrets for translation
-- `config.yaml` controls OAI harvest window, model slugs, glossary, and license mapping
+- `BRIGHTDATA_API_KEY` and `BRIGHTDATA_ZONE` enable ChinaXiv harvesting (default path)
+- `config.yaml` controls model slugs, glossary, and optional proxy settings
 
 Cost tracking is estimated via crude token counts and `config.yaml` pricing.
 

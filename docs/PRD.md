@@ -40,9 +40,9 @@ References:
 
 ### Scope (Functional Requirements)
 1) Harvest
-   - Identify endpoint liveness check on start
-   - ListRecords for previous UTC day; handle `resumptionToken` paging
-   - Store raw XML for traceability (size-capped, rolling retention)
+   - ChinaXiv scraping via BrightData (Web Unlocker)
+   - Safe rate limits and checkpointing; resume capability
+   - Store harvested JSON for traceability (size-capped, rolling retention)
    - Normalize to JSON with fields: `id`, `oai_identifier`, `title`, `creators`, `subjects`, `abstract`, `date`, `pdf_url`, `source_url`, `license`, `setSpec` (if any)
 
 2) License Gate
@@ -85,7 +85,7 @@ Repository layout
 ```
 repo/
   src/
-    harvest_ia.py          # harvest from Internet Archive ChinaXiv mirror
+    # harvesting handled externally; IA removed
     licenses.py            # parse license; decide derivative permission
     select_and_fetch.py    # seen cache, fetch PDF from IA
     tex_guard.py           # mask/unmask math and LaTeX
@@ -97,11 +97,11 @@ repo/
     config.yaml            # model slugs, prompts, IA endpoints, license mappings
   data/
     seen.json              # processed IDs cache
-    raw_json/              # saved IA API responses (optional)
+    raw_json/              # optional raw responses (if custom harvester used)
   assets/                  # CSS, logo, MathJax, MiniSearch/Lunr
   site/                    # generated static site (deploy target)
   docs/
-    INTERNET_ARCHIVE_PLAN.md  # migration plan and implementation guide
+    archive/INTERNET_ARCHIVE_PLAN.md  # archived plan (not in use)
   .github/workflows/build.yml
 ```
 
@@ -125,36 +125,9 @@ Data model (normalized JSON per record)
 }
 ```
 
-Internet Archive harvesting
-- Endpoint: `https://archive.org/services/search/v1/scrape`
-- Query: `collection:chinaxivmirror`
-- Fields: `identifier,chinaxiv,title,creator,subject,date,description`
-- Paging: cursor-based pagination (unlimited results, no 10K limit)
-- Storage: optional JSON caching to `data/raw_json/` for debugging
-- Normalization: map IA fields to standard format:
-  - `identifier` → `id` (prefixed with `ia-`)
-  - `chinaxiv` → `oai_identifier` (original ChinaXiv ID)
-  - `title` → `title`
-  - `creator` → `creators` (ensure list)
-  - `description` → `abstract`
-  - `subject` → `subjects` (ensure list)
-  - `date` → `date`
-- PDF download: `https://archive.org/download/{identifier}/{filename}.pdf`
-
-Data Source: Internet Archive (Replaces ChinaXiv OAI-PMH)
-- **Issue**: ChinaXiv OAI-PMH endpoint returns "Sorry!You have no right to access this web" - hard-blocked at application level (tested all headers/cookies/proxies)
-- **Solution**: Harvest from Internet Archive's ChinaXiv mirror collection
-- **Benefits**:
-  - ✅ 30,817+ papers with full metadata and PDFs
-  - ✅ No authentication, no geo-blocking, no bot detection
-  - ✅ Simple JSON API with cursor pagination
-  - ✅ Zero proxy costs (no Bright Data needed)
-- **API Endpoints**:
-  - Scraping: `https://archive.org/services/search/v1/scrape?q=collection:chinaxivmirror`
-  - Metadata: `https://archive.org/metadata/{identifier}`
-  - Download: `https://archive.org/download/{identifier}/{filename}`
-- **Migration**: See `docs/INTERNET_ARCHIVE_PLAN.md` for implementation details
-- **Deprecated**: Proxy setup (Bright Data, GCP Shadowsocks) no longer needed
+Data Ingestion
+- Internet Archive approach has been removed from scope.
+- OAI-PMH remains blocked. For V1, ingestion is external/manual or via future custom harvesters.
 
 License parsing and policy
 - **DISABLED: We do not care about licenses.** All papers translated in full regardless of license restrictions.

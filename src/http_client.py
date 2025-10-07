@@ -109,7 +109,7 @@ def http_get(
 
 def openrouter_headers() -> dict:
     """
-    Get headers for OpenRouter API requests.
+    Get headers for OpenRouter API requests with automatic env mismatch resolution.
     
     Returns:
         Headers dictionary
@@ -117,13 +117,10 @@ def openrouter_headers() -> dict:
     Raises:
         RuntimeError: If OPENROUTER_API_KEY not set
     """
-    from .config import load_dotenv
+    from .env_utils import get_api_key
     
-    # Load from .env if present and not already set
-    load_dotenv()
-    key = os.getenv("OPENROUTER_API_KEY")
-    if not key:
-        raise RuntimeError("OPENROUTER_API_KEY not set")
+    # Get API key with automatic mismatch resolution
+    key = get_api_key("OPENROUTER_API_KEY")
     
     return {
         "Authorization": f"Bearer {key}",

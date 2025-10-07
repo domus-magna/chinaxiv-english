@@ -309,7 +309,7 @@ Runs performance optimizations.
 ### Paper
 ```json
 {
-  "id": "ia-20241005-001",
+  "id": "paper-20241005-001",
   "oai_identifier": "oai:chinaxiv.org:202410.00123",
   "title": "Machine Learning Applications",
   "title_en": "Machine Learning Applications",
@@ -318,7 +318,7 @@ Runs performance optimizations.
   "abstract_en": "This paper presents...",
   "subjects": ["cs.AI", "cs.LG"],
   "date": "2024-10-05",
-  "pdf_url": "https://archive.org/download/...",
+  "pdf_url": "https://example.org/download/paper.pdf",
   "source_url": "https://chinaxiv.org/abs/202410.00123",
   "license": {
     "raw": "CC BY 4.0",
@@ -433,12 +433,12 @@ curl "https://chinaxiv-english.pages.dev/search?q=machine%20learning"
 
 ### Get Paper Details
 ```bash
-curl "https://chinaxiv-english.pages.dev/items/ia-20241005-001.html"
+curl "https://chinaxiv-english.pages.dev/items/paper-20241005-001.html"
 ```
 
 ### Download PDF
 ```bash
-curl -O "https://chinaxiv-english.pages.dev/items/ia-20241005-001.pdf"
+curl -O "https://chinaxiv-english.pages.dev/items/paper-20241005-001.pdf"
 ```
 
 ### Create Alert
@@ -465,7 +465,7 @@ curl "https://chinaxiv-english.pages.dev/monitor/api/system"
 import requests
 
 # Get paper details
-response = requests.get("https://chinaxiv-english.pages.dev/items/ia-20241005-001.html")
+response = requests.get("https://chinaxiv-english.pages.dev/items/paper-20241005-001.html")
 
 # Create alert
 response = requests.post(
@@ -482,7 +482,7 @@ response = requests.post(
 ### JavaScript
 ```javascript
 // Get paper details
-fetch('https://chinaxiv-english.pages.dev/items/ia-20241005-001.html')
+fetch('https://chinaxiv-english.pages.dev/items/paper-20241005-001.html')
   .then(response => response.text())
   .then(html => console.log(html));
 

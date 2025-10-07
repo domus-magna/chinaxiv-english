@@ -30,7 +30,12 @@ health:
 	$(PY) -m src.health --skip-openrouter || true
 
 smoke:
-	$(PY) -m src.harvest_oai || true
+	# Attempt ChinaXiv harvest via BrightData (optimized) for current month if credentials exist
+	@if [ -n "$$BRIGHTDATA_API_KEY" ] && [ -n "$$BRIGHTDATA_ZONE" ]; then \
+		$(PY) -m src.harvest_chinaxiv_optimized --month $$($(PY) -c 'import datetime;print(datetime.datetime.utcnow().strftime("%Y%m"))') || true; \
+	else \
+		echo 'Skipping harvest: set BRIGHTDATA_API_KEY and BRIGHTDATA_ZONE to enable'; \
+	fi
 	@latest=$$(ls -1t data/records/*.json 2>/dev/null | head -n1 || echo ''); \
 	if [ -n "$$latest" ]; then \
 		$(PY) -m src.select_and_fetch --records "$$latest" --limit 2 --output data/selected.json || true; \
@@ -58,9 +63,12 @@ clean:
 dev: clean venv
 	@if [ -z "$$OPENROUTER_API_KEY" ] && [ ! -f .env ]; then echo "Set OPENROUTER_API_KEY or create .env"; exit 1; fi
 	$(VPY) -m pytest -q
-	# Proceed even if OAI is unreachable locally; OpenRouter must be OK
-	$(VPY) -m src.health --skip-oai || true
-	$(VPY) -m src.harvest_oai || true
+	# Try harvest via BrightData if configured
+	@if [ -n "$$BRIGHTDATA_API_KEY" ] && [ -n "$$BRIGHTDATA_ZONE" ]; then \
+		$(VPY) -m src.harvest_chinaxiv_optimized --month $$($(VPY) -c 'import datetime;print(datetime.datetime.utcnow().strftime("%Y%m"))') || true; \
+	else \
+		echo 'Skipping harvest: set BRIGHTDATA_API_KEY and BRIGHTDATA_ZONE to enable'; \
+	fi
 	@latest=$$(ls -1t data/records/*.json 2>/dev/null | head -n1 || echo ''); \
 	if [ -n "$$latest" ]; then \
 		$(VPY) -m src.select_and_fetch --records "$$latest" --limit $(DEV_LIMIT) --output data/selected.json || true; \

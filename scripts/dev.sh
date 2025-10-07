@@ -116,11 +116,14 @@ run_pipeline() {
     local limit=${1:-5}
     print_status "Running translation pipeline (limit: $limit)..."
     
-    # Harvest from Internet Archive
-    python3 -m src.harvest_ia --limit $((limit * 2))
-    
-    # Find latest records
-    latest=$(ls -1t data/records/ia_*.json 2>/dev/null | head -n1 || echo '')
+    # Harvest via BrightData if configured, else try to find existing records
+    if [[ -n "$BRIGHTDATA_API_KEY" && -n "$BRIGHTDATA_ZONE" ]]; then
+        print_status "Harvesting from ChinaXiv (BrightData, optimized)..."
+        python3 -m src.harvest_chinaxiv_optimized --month $(date -u +"%Y%m") || true
+    else
+        print_warning "Skipping harvest: set BRIGHTDATA_API_KEY and BRIGHTDATA_ZONE to enable"
+    fi
+    latest=$(ls -1t data/records/*.json 2>/dev/null | head -n1 || echo '')
     if [ -n "$latest" ]; then
         python3 -m src.select_and_fetch --records "$latest" --limit $limit --output data/selected.json
     else

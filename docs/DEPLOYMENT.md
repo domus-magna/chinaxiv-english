@@ -45,6 +45,8 @@ Add the following secrets to your GitHub repository:
 - `CF_API_TOKEN`: Cloudflare API token with Pages:Edit permission
 - `CLOUDFLARE_ACCOUNT_ID`: Your Cloudflare Account ID
 - `OPENROUTER_API_KEY`: OpenRouter API key for translations
+- `BRIGHTDATA_API_KEY`: BrightData API key (for harvesting)
+- `BRIGHTDATA_ZONE`: BrightData zone name (for harvesting)
 - `DISCORD_WEBHOOK_URL`: Discord webhook for notifications (optional)
 
 ### 2. Create Cloudflare API Token
@@ -220,7 +222,7 @@ curl -I https://your-domain.com/monitor
 # Custom build configuration
 build:
   command: |
-    python -m src.harvest_ia --limit 10
+    # Harvest removed (Internet Archive). Proceed with existing records.
     python -m src.pipeline --limit 5
     python -m src.render
     python -m src.search_index

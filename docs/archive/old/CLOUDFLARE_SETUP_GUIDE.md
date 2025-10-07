@@ -38,8 +38,8 @@
 ### Step 2: Add Token to GitHub Secrets
 
 ```bash
-# Add the API token to GitHub secrets
-gh secret set CF_API_TOKEN --repo seconds-0/chinaxiv-english --body "YOUR_TOKEN_HERE"
+# Add the API token to GitHub secrets (replace with your repo)
+gh secret set CF_API_TOKEN --repo <owner>/<repo> --body "<YOUR_TOKEN_HERE>"
 ```
 
 ### Step 3: Test GitHub Actions Workflow
@@ -55,8 +55,8 @@ gh run list --repo seconds-0/chinaxiv-english --limit 5
 ## Current Configuration
 
 ### GitHub Secrets
-- ✅ `CLOUDFLARE_ACCOUNT_ID`: `f8f951bd34fc7d5e0c17c7d00cfc37e8`
-- ✅ `OPENROUTER_API_KEY`: `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`
+- ✅ `CLOUDFLARE_ACCOUNT_ID`: <REDACTED>
+- ✅ `OPENROUTER_API_KEY`: <REDACTED>
 - ❌ `CF_API_TOKEN`: (needs manual creation)
 
 ### Cloudflare Pages

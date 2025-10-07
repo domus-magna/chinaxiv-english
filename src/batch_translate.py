@@ -20,66 +20,33 @@ from .monitoring import alert_info, alert_warning, alert_error, alert_critical
 
 
 def harvest_papers(years: List[str]) -> List[str]:
-    """
-    Harvest papers from Internet Archive for specified years.
-
-    Args:
-        years: List of years (e.g., ['2024', '2025'])
-
-    Returns:
-        List of paper IDs
-    """
-    import requests
-
-    paper_ids = []
-
-    for year in years:
-        log(f"Harvesting {year} papers from Internet Archive...")
-
-        url = "https://archive.org/advancedsearch.php"
-        params = {
-            'q': f'collection:chinaxivmirror AND identifier:*{year}*',
-            'fl': 'identifier',
-            'rows': 10000,  # Max per request
-            'output': 'json',
-            'sort': 'identifier desc'
-        }
-
-        resp = requests.get(url, params=params, timeout=30)
-        data = resp.json()
-
-        items = data.get('response', {}).get('docs', [])
-        year_ids = [f"ia-{item['identifier']}" for item in items]
-
-        log(f"Found {len(year_ids)} papers from {year}")
-        paper_ids.extend(year_ids)
-
-    return paper_ids
+    """Harvesting via Internet Archive has been removed. Provide IDs via custom means."""
+    raise NotImplementedError("Internet Archive harvesting removed. Use custom ingestion.")
 
 
 def init_queue(years: List[str], limit: int = None, use_harvested: bool = False) -> None:
     """Initialize job queue with papers."""
     # Job queue is file-based, no schema initialization needed
 
-    # Load papers from harvested records or harvest fresh
+    # Load papers from harvested records
     if use_harvested:
         import glob
         records_dir = "data/records"
-        ia_files = glob.glob(os.path.join(records_dir, "ia_*.json"))
+        rec_files = glob.glob(os.path.join(records_dir, "*.json"))
 
-        if not ia_files:
-            log("No harvested records found, falling back to fresh harvest")
-            paper_ids = harvest_papers(years)
+        if not rec_files:
+            log("No records found under data/records. Please provide records before initializing queue.")
+            paper_ids = []
         else:
             # Sort by modification time, newest first
-            ia_files = sorted(ia_files, key=os.path.getmtime, reverse=True)
-            log(f"Loading from harvested records: {os.path.basename(ia_files[0])}")
+            rec_files = sorted(rec_files, key=os.path.getmtime, reverse=True)
+            log(f"Loading from records: {os.path.basename(rec_files[0])}")
             from .utils import read_json
-            ia_records = read_json(ia_files[0])
-            paper_ids = [r['id'] for r in ia_records]
-            log(f"Loaded {len(paper_ids)} papers from harvested records")
+            records = read_json(rec_files[0])
+            paper_ids = [r['id'] for r in records]
+            log(f"Loaded {len(paper_ids)} papers from records")
     else:
-        paper_ids = harvest_papers(years)
+        paper_ids = []
 
     if limit:
         paper_ids = paper_ids[:limit]
