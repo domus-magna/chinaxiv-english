@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import os
-from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from lxml import etree
@@ -34,7 +33,9 @@ def oai_request(base_url: str, **params: str) -> str:
 def parse_identify(xml: str) -> Dict[str, str]:
     root = etree.fromstring(xml.encode("utf-8"))
     repo_name = root.findtext(".//{http://www.openarchives.org/OAI/2.0/}repositoryName")
-    earliest = root.findtext(".//{http://www.openarchives.org/OAI/2.0/}earliestDatestamp")
+    earliest = root.findtext(
+        ".//{http://www.openarchives.org/OAI/2.0/}earliestDatestamp"
+    )
     granularity = root.findtext(".//{http://www.openarchives.org/OAI/2.0/}granularity")
     return {
         "repositoryName": repo_name or "",
@@ -70,9 +71,13 @@ def normalize_record(rec_el: etree._Element) -> Optional[Dict[str, Any]]:
     titles = [e.text for e in meta.findall(".//dc:title", namespaces=NS) if e.text]
     creators = [e.text for e in meta.findall(".//dc:creator", namespaces=NS) if e.text]
     subjects = [e.text for e in meta.findall(".//dc:subject", namespaces=NS) if e.text]
-    descriptions = [e.text for e in meta.findall(".//dc:description", namespaces=NS) if e.text]
+    descriptions = [
+        e.text for e in meta.findall(".//dc:description", namespaces=NS) if e.text
+    ]
     dates = [e.text for e in meta.findall(".//dc:date", namespaces=NS) if e.text]
-    identifiers = [e.text for e in meta.findall(".//dc:identifier", namespaces=NS) if e.text]
+    identifiers = [
+        e.text for e in meta.findall(".//dc:identifier", namespaces=NS) if e.text
+    ]
     rights = [e.text for e in meta.findall(".//dc:rights", namespaces=NS) if e.text]
 
     title = titles[0] if titles else ""
@@ -101,7 +106,13 @@ def normalize_record(rec_el: etree._Element) -> Optional[Dict[str, Any]]:
     }
 
 
-def harvest(base_url: str, metadata_prefix: str, day_from: str, day_until: str, set_spec: Optional[str] = None) -> List[Dict[str, Any]]:
+def harvest(
+    base_url: str,
+    metadata_prefix: str,
+    day_from: str,
+    day_until: str,
+    set_spec: Optional[str] = None,
+) -> List[Dict[str, Any]]:
     params: Dict[str, str] = {
         "verb": "ListRecords",
         "metadataPrefix": metadata_prefix,
@@ -125,7 +136,9 @@ def harvest(base_url: str, metadata_prefix: str, day_from: str, day_until: str, 
                 out.append(item)
         # resumptionToken handling
         token_el = root.find(".//oai:ListRecords/oai:resumptionToken", namespaces=NS)
-        token = token_el.text.strip() if token_el is not None and token_el.text else None
+        token = (
+            token_el.text.strip() if token_el is not None and token_el.text else None
+        )
         if token:
             params = {"verb": "ListRecords", "resumptionToken": token}
             part += 1
@@ -137,17 +150,25 @@ def harvest(base_url: str, metadata_prefix: str, day_from: str, day_until: str, 
 
 
 def run_cli() -> None:
-    parser = argparse.ArgumentParser(description="Harvest ChinaXiv via OAI-PMH and normalize records.")
+    parser = argparse.ArgumentParser(
+        description="Harvest ChinaXiv via OAI-PMH and normalize records."
+    )
     parser.add_argument("--from", dest="from_day", help="YYYY-MM-DD start date (UTC)")
     parser.add_argument("--until", dest="until_day", help="YYYY-MM-DD end date (UTC)")
     parser.add_argument("--base-url", dest="base_url", help="OAI base URL override")
-    parser.add_argument("--metadata-prefix", dest="metadata_prefix", help="Override metadataPrefix (default from config)")
+    parser.add_argument(
+        "--metadata-prefix",
+        dest="metadata_prefix",
+        help="Override metadataPrefix (default from config)",
+    )
     parser.add_argument("--set", dest="set_spec", help="Harvest specific setSpec")
     args = parser.parse_args()
 
     cfg = load_yaml(os.path.join("src", "config.yaml"))
     base_url = args.base_url or cfg["oai"]["base_url"]
-    metadata_prefix = args.metadata_prefix or cfg["oai"].get("metadata_prefix", "oai_eprint")
+    metadata_prefix = args.metadata_prefix or cfg["oai"].get(
+        "metadata_prefix", "oai_eprint"
+    )
 
     if args.from_day and args.until_day:
         day_from, day_until = args.from_day, args.until_day
@@ -159,7 +180,9 @@ def run_cli() -> None:
     log("Identify endpoint liveness…")
     ident_xml = oai_request(base_url, verb="Identify")
     info = parse_identify(ident_xml)
-    log(f"OAI: {info['repositoryName']} earliest={info['earliestDatestamp']} granularity={info['granularity']}")
+    log(
+        f"OAI: {info['repositoryName']} earliest={info['earliestDatestamp']} granularity={info['granularity']}"
+    )
 
     sets = [args.set_spec] if args.set_spec else (cfg["oai"].get("sets", []) or [None])
     all_items: List[Dict[str, Any]] = []

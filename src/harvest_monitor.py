@@ -9,7 +9,7 @@ import json
 import os
 import time
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict
 
 
 def get_harvest_stats() -> Dict:
@@ -19,7 +19,7 @@ def get_harvest_stats() -> Dict:
         "months_completed": 0,
         "papers_scraped": 0,
         "current_month": None,
-        "status": "unknown"
+        "status": "unknown",
     }
 
     # Check completed months
@@ -76,10 +76,12 @@ def show_status():
     print("CHINAXIV HARVEST STATUS")
     print("=" * 60)
     print(f"Status:         {stats['status'].upper()}")
-    print(f"Months:         {stats['months_completed']}/{stats['total_months']} completed")
+    print(
+        f"Months:         {stats['months_completed']}/{stats['total_months']} completed"
+    )
     print(f"Papers Scraped: {stats['papers_scraped']:,}")
 
-    if stats['current_month']:
+    if stats["current_month"]:
         print(f"Current Month:  {stats['current_month']}")
 
     print()
@@ -110,7 +112,7 @@ def watch_status():
 
     try:
         while True:
-            os.system('clear' if os.name != 'nt' else 'cls')
+            os.system("clear" if os.name != "nt" else "cls")
             show_status()
             time.sleep(5)
     except KeyboardInterrupt:

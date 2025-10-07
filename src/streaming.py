@@ -23,13 +23,13 @@ def process_single_paper(paper_id: str) -> Dict:
     """Process a single paper."""
     # Load paper data
     paper = load_paper(paper_id)
-    
+
     # Translate paper
     translation = translate_paper(paper)
-    
+
     # Save translation
     save_translation(paper_id, translation)
-    
+
     return {"id": paper_id, "status": "completed"}
 
 
@@ -37,7 +37,7 @@ def load_paper(paper_id: str) -> Dict:
     """Load paper data."""
     import json
     import os
-    
+
     paper_file = f"data/selected/{paper_id}.json"
     if os.path.exists(paper_file):
         with open(paper_file, "r", encoding="utf-8") as f:
@@ -52,7 +52,9 @@ def translate_paper(paper: Dict) -> Dict:
         "id": paper["id"],
         "title_en": svc.translate_field(paper.get("title", ""), dry_run=False),
         "abstract_en": svc.translate_field(paper.get("abstract", ""), dry_run=False),
-        "body_en": [svc.translate_field(p, dry_run=False) for p in paper.get("body", [])]
+        "body_en": [
+            svc.translate_field(p, dry_run=False) for p in paper.get("body", [])
+        ],
     }
 
 
@@ -60,7 +62,7 @@ def save_translation(paper_id: str, translation: Dict):
     """Save translation."""
     import json
     import os
-    
+
     os.makedirs("data/translated", exist_ok=True)
     translation_file = f"data/translated/{paper_id}.json"
     with open(translation_file, "w", encoding="utf-8") as f:

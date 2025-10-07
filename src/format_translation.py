@@ -22,18 +22,29 @@ def is_section_heading(text: str) -> bool:
         - "Acknowledgments"
     """
     # Numbered sections
-    if re.match(r'^\d+\.?\s+[A-Z]', text.strip()):
+    if re.match(r"^\d+\.?\s+[A-Z]", text.strip()):
         return True
 
     # Common heading words (short, capitalized, no period at end)
     heading_words = {
-        'abstract', 'introduction', 'background', 'methods', 'methodology',
-        'results', 'discussion', 'conclusion', 'conclusions',
-        'references', 'acknowledgments', 'acknowledgements',
-        'appendix', 'supplementary', 'materials'
+        "abstract",
+        "introduction",
+        "background",
+        "methods",
+        "methodology",
+        "results",
+        "discussion",
+        "conclusion",
+        "conclusions",
+        "references",
+        "acknowledgments",
+        "acknowledgements",
+        "appendix",
+        "supplementary",
+        "materials",
     }
 
-    cleaned = text.strip().lower().rstrip('.')
+    cleaned = text.strip().lower().rstrip(".")
     if cleaned in heading_words and len(text) < 50:
         return True
 
@@ -52,11 +63,11 @@ def is_mathematical_formula(text: str) -> bool:
     Looks for LaTeX commands or heavy use of mathematical symbols.
     """
     # Check for LaTeX commands
-    if re.search(r'\\[a-zA-Z]+', text):
+    if re.search(r"\\[a-zA-Z]+", text):
         return True
 
     # Check for high density of math symbols
-    math_chars = sum(1 for c in text if c in '∑∏∫∂∇±×÷≤≥≠≈∞∈∉⊂⊃∩∪∀∃()[]{}')
+    math_chars = sum(1 for c in text if c in "∑∏∫∂∇±×÷≤≥≠≈∞∈∉⊂⊃∩∪∀∃()[]{}")
     if len(text) > 0 and math_chars / len(text) > 0.3:
         return True
 
@@ -124,7 +135,7 @@ def format_as_markdown(paragraphs: List[str]) -> str:
         # Section headings
         if is_section_heading(text):
             # Remove trailing period from heading
-            text = text.rstrip('.')
+            text = text.rstrip(".")
             lines.append(f"\n## {text}\n")
 
         # Mathematical formulas (put in code block)
@@ -163,11 +174,11 @@ def format_body_paragraphs(paragraphs: List[str]) -> List[str]:
     cleaned = []
     for para in merged:
         # Normalize whitespace
-        text = re.sub(r'\s+', ' ', para).strip()
+        text = re.sub(r"\s+", " ", para).strip()
 
         # Remove duplicate punctuation
-        text = re.sub(r'\.\.+', '.', text)
-        text = re.sub(r',\s*,', ',', text)
+        text = re.sub(r"\.\.+", ".", text)
+        text = re.sub(r",\s*,", ",", text)
 
         if text:
             cleaned.append(text)
@@ -188,18 +199,18 @@ def format_translation(translation: Dict[str, Any]) -> Dict[str, Any]:
     formatted = translation.copy()
 
     # Format body paragraphs if present
-    if translation.get('body_en'):
-        formatted['body_en'] = format_body_paragraphs(translation['body_en'])
+    if translation.get("body_en"):
+        formatted["body_en"] = format_body_paragraphs(translation["body_en"])
 
     # Format abstract (single paragraph, just clean whitespace)
-    if translation.get('abstract_en'):
-        abstract = translation['abstract_en']
-        formatted['abstract_en'] = re.sub(r'\s+', ' ', abstract).strip()
+    if translation.get("abstract_en"):
+        abstract = translation["abstract_en"]
+        formatted["abstract_en"] = re.sub(r"\s+", " ", abstract).strip()
 
     # Format title (single line, no extra whitespace)
-    if translation.get('title_en'):
-        title = translation['title_en']
-        formatted['title_en'] = re.sub(r'\s+', ' ', title).strip()
+    if translation.get("title_en"):
+        title = translation["title_en"]
+        formatted["title_en"] = re.sub(r"\s+", " ", title).strip()
 
     return formatted
 
@@ -219,26 +230,26 @@ def format_translation_to_markdown(translation: Dict[str, Any]) -> str:
     parts = []
 
     # Title
-    if translation.get('title_en'):
+    if translation.get("title_en"):
         parts.append(f"# {translation['title_en']}\n")
 
     # Metadata
-    if translation.get('creators'):
+    if translation.get("creators"):
         parts.append(f"**Authors:** {', '.join(translation['creators'])}\n")
 
-    if translation.get('date'):
+    if translation.get("date"):
         parts.append(f"**Date:** {translation['date']}\n")
 
-    if translation.get('subjects'):
+    if translation.get("subjects"):
         parts.append(f"**Subjects:** {', '.join(translation['subjects'])}\n")
 
     # Abstract
-    if translation.get('abstract_en'):
+    if translation.get("abstract_en"):
         parts.append(f"\n## Abstract\n\n{translation['abstract_en']}\n")
 
     # Body
-    if translation.get('body_en'):
-        formatted_body = format_body_paragraphs(translation['body_en'])
+    if translation.get("body_en"):
+        formatted_body = format_body_paragraphs(translation["body_en"])
         parts.append("\n## Full Text\n")
         parts.append(format_as_markdown(formatted_body))
 

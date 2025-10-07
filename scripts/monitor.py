@@ -47,8 +47,7 @@ def check_api_connectivity() -> Dict[str, bool]:
         log(f"OpenRouter check failed: {e}")
         results['openrouter'] = False
     
-    # Internet Archive removed - we no longer harvest from there
-    # (only had metadata, not full papers)
+    # Data source: BrightData-based ChinaXiv scraping (default) or external/manual ingestion
     
     return results
 

@@ -1,9 +1,10 @@
 """
 License service for ChinaXiv English translation.
 """
+
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from ..config import get_config
 from ..models import License
@@ -11,47 +12,49 @@ from ..models import License
 
 class LicenseService:
     """Service for handling license operations."""
-    
+
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         """
         Initialize license service.
-        
+
         Args:
             config: Configuration dictionary (optional)
         """
         self.config = config or get_config()
         self.license_mapping = self.config.get("license_mapping", {})
-    
+
     def decide_derivatives_allowed(self, record: Dict[str, Any]) -> Dict[str, Any]:
         """
         Decide if derivatives are allowed based on license.
-        
+
         Args:
             record: Record to check
-            
+
         Returns:
             Updated record with license information
         """
         from ..licenses import decide_derivatives_allowed
+
         return decide_derivatives_allowed(record, self.config)
-    
+
     def parse_license_mapping(self) -> Dict[str, Dict[str, Any]]:
         """
         Parse license mapping from configuration.
-        
+
         Returns:
             License mapping dictionary
         """
         from ..licenses import parse_license_mapping
+
         return parse_license_mapping(self.config)
-    
+
     def is_derivative_allowed(self, license_info: Optional[Dict[str, Any]]) -> bool:
         """
         Check if derivatives are allowed for a license.
-        
+
         Args:
             license_info: License information dictionary
-            
+
         Returns:
             True if derivatives are allowed
         """
@@ -59,20 +62,20 @@ class LicenseService:
             return False
         license_obj = License.from_dict(license_info)
         return license_obj.is_derivatives_allowed()
-    
+
     def get_license_summary(self, record: Dict[str, Any]) -> str:
         """
         Get a summary of license information for a record.
-        
+
         Args:
             record: Record to summarize
-            
+
         Returns:
             License summary string
         """
         license_info = record.get("license", {})
         if not license_info:
             return "No license information"
-        
+
         license_obj = License.from_dict(license_info)
         return license_obj.get_summary()

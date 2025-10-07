@@ -1,32 +1,30 @@
-name: backfill-translations
+name: backfill-month
 
 on:
   workflow_dispatch:
     inputs:
-      total_papers:
-        description: 'Total number of papers to process'
-        required: false
-        default: '1000'
-      workers_per_job:
-        description: 'Workers per parallel job'
+      month:
+        description: 'Month to backfill (YYYYMM)'
+        required: true
+      workers:
+        description: 'Parallel translation workers'
         required: false
         default: '20'
-      parallel_jobs:
-        description: 'Number of parallel jobs'
+      deploy:
+        description: 'Deploy site after backfill (true/false)'
         required: false
-        default: '5'
+        default: 'true'
 
 jobs:
   backfill:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        job_id: ${{ fromJSON(format('[1,2,3,4,5,6,7,8,9,10]', inputs.parallel_jobs)) }}
-      max-parallel: ${{ inputs.parallel_jobs || 5 }}
     permissions:
-      contents: read
+      contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -35,33 +33,69 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-      - name: Calculate job parameters
-        id: params
-        run: |
-          TOTAL_PAPERS=${{ inputs.total_papers || 1000 }}
-          WORKERS_PER_JOB=${{ inputs.workers_per_job || 20 }}
-          PARALLEL_JOBS=${{ inputs.parallel_jobs || 5 }}
-          
-          PAPERS_PER_JOB=$((TOTAL_PAPERS / PARALLEL_JOBS))
-          START_OFFSET=$(((${{ matrix.job_id }} - 1) * PAPERS_PER_JOB))
-          
-          echo "papers_per_job=$PAPERS_PER_JOB" >> $GITHUB_OUTPUT
-          echo "start_offset=$START_OFFSET" >> $GITHUB_OUTPUT
-          echo "workers_per_job=$WORKERS_PER_JOB" >> $GITHUB_OUTPUT
-      - name: Run backfill
+      - name: Backfill month
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          BRIGHTDATA_API_KEY: ${{ secrets.BRIGHTDATA_API_KEY }}
+          BRIGHTDATA_ZONE: ${{ secrets.BRIGHTDATA_ZONE }}
         run: |
           set -e
-          echo "🚀 Starting backfill job ${{ matrix.job_id }}..."
-          echo "📊 Job parameters:"
-          echo "  - Workers: ${{ steps.params.outputs.workers_per_job }}"
-          echo "  - Offset: ${{ steps.params.outputs.start_offset }}"
-          echo "  - Limit: ${{ steps.params.outputs.papers_per_job }}"
+          echo "🚀 Backfill for month: ${{ inputs.month }}"
           
-          python -m src.batch_translate start --workers ${{ steps.params.outputs.workers_per_job }} --offset ${{ steps.params.outputs.start_offset }} --limit ${{ steps.params.outputs.papers_per_job }} || {
-            echo "❌ Backfill job ${{ matrix.job_id }} failed"
+          if [ -z "${BRIGHTDATA_API_KEY}" ] || [ -z "${BRIGHTDATA_ZONE}" ]; then
+            echo "❌ BrightData credentials are required for backfill"
+            exit 1
+          fi
+          
+          echo "📥 Harvesting (optimized) for ${{ inputs.month }}..."
+          python -m src.harvest_chinaxiv_optimized --month "${{ inputs.month }}" || {
+            echo "❌ Harvest failed"
             exit 1
           }
           
-          echo "✅ Backfill job ${{ matrix.job_id }} completed successfully!"
+          REC="data/records/chinaxiv_${{ inputs.month }}.json"
+          if [ ! -f "$REC" ]; then
+            echo "❌ Records not found: $REC"
+            exit 1
+          fi
+          
+          echo "📋 Selecting new items from $REC..."
+          python -m src.select_and_fetch --records "$REC" --output data/selected.json || {
+            echo "❌ Selection failed"
+            exit 1
+          }
+          
+          echo "🌐 Translating (workers=${{ inputs.workers }})..."
+          python -m src.pipeline --skip-selection --workers "${{ inputs.workers }}" || {
+            echo "❌ Pipeline failed"
+            exit 1
+          }
+          echo "✅ Backfill and site build completed for ${{ inputs.month }}"
+      - name: Persist dedupe state (seen.json)
+        run: |
+          set -e
+          if [ ! -f data/seen.json ]; then
+            echo "No seen.json to persist; skipping"
+            exit 0
+          fi
+          echo "🔒 Persisting data/seen.json..."
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/seen.json || true
+          if git diff --cached --quiet; then
+            echo "No changes in seen.json"
+          else
+            git commit -m "chore(dedupe): update seen.json [skip ci]" || true
+            git push || echo "⚠️ Push failed (non-fatal)"
+          fi
+      - name: Deploy to Cloudflare Pages (optional)
+        if: ${{ inputs.deploy == 'true' }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        run: |
+          set -e
+          echo "🚀 Deploying to Cloudflare Pages..."
+          npm install -g wrangler
+          wrangler pages deploy site --project-name chinaxiv-english
+          echo "✅ Deployment completed"
