@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 """
-DEPRECATED: Direct ChinaXiv scraping.
-Use Internet Archive harvester in src/harvest_ia.py instead.
+Direct ChinaXiv scraping (smart mode).
 
-Smart ChinaXiv harvester using pre-analyzed max IDs.
-
-Based on IA data + homepage analysis, uses known reasonable maxes
-for each month to avoid expensive binary search.
+Smart ChinaXiv harvester using pre-analyzed max IDs for recent months
+to limit probing. Suitable for fast, low-cost incremental harvests.
 """
 
 import argparse

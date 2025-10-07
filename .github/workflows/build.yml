@@ -4,19 +4,18 @@ on:
   schedule:
     - cron: '0 3 * * *'
   workflow_dispatch:
-    inputs:
-      limit:
-        description: 'Number of papers to process'
-        required: false
-        default: '5'
+    {}
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -31,33 +30,69 @@ jobs:
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          BRIGHTDATA_API_KEY: ${{ secrets.BRIGHTDATA_API_KEY }}
+          BRIGHTDATA_ZONE: ${{ secrets.BRIGHTDATA_ZONE }}
         run: |
           set -e
           echo "🚀 Starting build process..."
           
-          # Harvest from Internet Archive
-          echo "📥 Harvesting from Internet Archive..."
-          python -m src.harvest_ia --limit ${{ inputs.limit || 5 }} || {
-            echo "⚠️ Harvest failed, continuing with existing data"
-          }
-          
-          # Find latest records
-          echo "🔍 Finding latest records..."
-          latest=$(ls -1t data/records/ia_*.json 2>/dev/null | head -n1 || echo '')
-          if [ -n "$latest" ]; then
-            echo "📋 Processing records from: $latest"
-            python -m src.select_and_fetch --records "$latest" --limit ${{ inputs.limit || 5 }} --output data/selected.json || {
-              echo "⚠️ Record selection failed, using empty selection"
-              echo '[]' > data/selected.json
+          # Attempt ChinaXiv harvest via BrightData if credentials provided
+          if [ -n "${BRIGHTDATA_API_KEY}" ] && [ -n "${BRIGHTDATA_ZONE}" ]; then
+            echo "📥 Harvesting from ChinaXiv (BrightData)…"
+            CURR=$(date -u +"%Y%m")
+            PREV=$(date -u -d "-1 month" +"%Y%m")
+            echo "   Current month: $CURR"
+            echo "   Previous month: $PREV"
+            python -m src.harvest_chinaxiv_optimized --month "$CURR" || echo "⚠️ Harvest current month failed; continuing"
+            python -m src.harvest_chinaxiv_optimized --month "$PREV" || echo "⚠️ Harvest previous month failed; continuing"
+          else
+            echo "ℹ️ BrightData credentials not set; skipping harvest"
+          fi
+          echo "🔍 Preparing records for selection..."
+          PYTHONIOENCODING=utf-8 python - <<'PY'
+import os, json, glob
+os.makedirs('data/records', exist_ok=True)
+curr = os.popen("date -u +%Y%m").read().strip()
+try:
+    prev = os.popen("date -u -d '-1 month' +%Y%m").read().strip()
+except Exception:
+    prev = ''
+paths = []
+for ym in (curr, prev):
+    if not ym:
+        continue
+    p = f"data/records/chinaxiv_{ym}.json"
+    if os.path.exists(p):
+        paths.append(p)
+merged = []
+for p in paths:
+    try:
+        with open(p, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            if isinstance(data, list):
+                merged.extend(data)
+    except Exception as e:
+        pass
+outp = 'data/records/_merged_current_prev.json'
+with open(outp, 'w', encoding='utf-8') as f:
+    json.dump(merged, f, ensure_ascii=False)
+print(f"Merged {len(paths)} record files → {outp} with {len(merged)} items")
+PY
+
+          echo "📋 Selecting new items (no limit)..."
+          if [ -f data/records/_merged_current_prev.json ]; then
+            python -m src.select_and_fetch --records data/records/_merged_current_prev.json --output data/selected.json || {
+              echo "⚠️ Record selection failed, using empty selection";
+              echo '[]' > data/selected.json;
             }
           else
-            echo "⚠️ No records found, using empty selection"
-            echo '[]' > data/selected.json
+            echo "⚠️ No records found to select";
+            echo '[]' > data/selected.json;
           fi
           
           # Translate
           echo "🌐 Running translation pipeline..."
-          python -m src.pipeline --limit ${{ inputs.limit || 5 }} || {
+          python -m src.pipeline --skip-selection --workers 20 || {
             echo "⚠️ Translation failed, continuing with existing translations"
           }
           
@@ -80,6 +115,23 @@ jobs:
           }
           
           echo "✅ Build completed successfully!"
+      - name: Persist dedupe state (seen.json)
+        run: |
+          set -e
+          if [ ! -f data/seen.json ]; then
+            echo "No seen.json to persist; skipping"
+            exit 0
+          fi
+          echo "🔒 Persisting data/seen.json..."
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/seen.json || true
+          if git diff --cached --quiet; then
+            echo "No changes in seen.json"
+          else
+            git commit -m "chore(dedupe): update seen.json [skip ci]" || true
+            git push || echo "⚠️ Push failed (non-fatal)"
+          fi
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:

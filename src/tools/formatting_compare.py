@@ -1,8 +1,8 @@
 """
 Generate before/after formatting samples for selected translated papers.
 
-Before: heuristic formatting (current baseline).
-After: LLM formatting pass (math-safe). Falls back to heuristic on error.
+Before: Unformatted translation (raw output).
+After: LLM formatting pass (math-safe). Fails loudly if LLM unavailable.
 
 Outputs side-by-side HTML pages into `site/samples/` and an index page.
 """
@@ -17,10 +17,7 @@ from typing import Any, Dict, List, Tuple
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from ..utils import ensure_dir, read_json, write_text
-from ..format_translation import (
-    format_translation as heuristic_format_record,
-    format_translation_to_markdown as heuristic_to_md,
-)
+# Removed heuristic formatting imports - LLM formatting only
 from ..services.formatting_service import FormattingService
 from ..config import get_config
 
@@ -57,29 +54,23 @@ def pick_candidates(count: int) -> List[str]:
 
 def build_markdown_variants(rec: Dict[str, Any]) -> Tuple[Dict[str, str], Dict[str, str], str]:
     """Return (before_md, after_md, note). Each is a dict with 'abstract' and 'body'."""
-    # Heuristic baseline
-    before_rec = heuristic_format_record(rec)
-    before_abs = before_rec.get("abstract_en") or ""
-    # heuristic_to_md returns a full document; extract Full Text section for body preview
-    before_full_doc = heuristic_to_md(before_rec)
-    body = before_full_doc
-    marker = "\n## Full Text\n"
-    if marker in before_full_doc:
-        body = before_full_doc.split(marker, 1)[1].strip()
-    before = {"abstract": before_abs, "body": body}
+    # Before: Raw unformatted translation
+    before_abs = rec.get("abstract_en") or ""
+    before_body_paras = rec.get("body_en") or []
+    before_body = "\n\n".join(p or "" for p in before_body_paras if p and p.strip())
+    before = {"abstract": before_abs, "body": before_body}
 
-    # LLM formatting pass (force mode=llm via local config override)
+    # After: LLM formatting pass
     cfg = get_config() or {}
-    cfg = {**cfg, "formatting": {**(cfg.get("formatting") or {}), "mode": "llm"}}
     note = ""
     try:
         svc = FormattingService(cfg)
-        after_rec = svc.format_translation(before_rec, dry_run=False)
+        after_rec = svc.format_translation(rec, dry_run=False)
         after_abs = after_rec.get("abstract_md") or before_abs
-        after_body = after_rec.get("body_md") or body
+        after_body = after_rec.get("body_md") or before_body
         after = {"abstract": after_abs, "body": after_body}
     except Exception as e:
-        note = f"LLM formatting failed, showing heuristic instead: {e}"
+        note = f"LLM formatting failed: {e}"
         after = before
 
     return before, after, note
@@ -169,7 +160,7 @@ def render_index(ids: List[str], out_dir: str) -> None:
     </head><body>
     <h1>Formatting Samples</h1>
     <ol>{links}</ol>
-    <p>Open each link to compare heuristic vs LLM formatting.</p>
+    <p>Open each link to compare unformatted vs LLM formatting.</p>
     </body></html>
     """.format(links=links)
     ensure_dir(out_dir)

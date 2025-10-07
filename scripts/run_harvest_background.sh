@@ -11,8 +11,8 @@ if [ -f data/harvest.pid ]; then
 fi
 
 # Start harvest in background
-echo "Starting ChinaXiv harvest for April-Oct 2025..."
-nohup python3.11 -m src.harvest_chinaxiv_smart \
+echo "Starting ChinaXiv optimized harvest for Apr–Oct 2025..."
+nohup python3.11 -m src.harvest_chinaxiv_optimized \
     --start 202504 \
     --end 202510 \
     --rate-limit 0.3 \

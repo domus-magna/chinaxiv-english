@@ -43,7 +43,7 @@ python -m src.health --skip-openrouter || echo "⚠️  Health check failed (non
 
 # Harvest sample data
 echo "📥 Harvesting sample data..."
-python -m src.harvest_ia --limit 10
+# Internet Archive harvesting removed; ensure records exist under data/records if needed
 
 # Process sample papers
 echo "🔄 Processing sample papers..."

@@ -30,16 +30,7 @@ Thank you for your interest in contributing to ChinaXiv Translations! This guide
    ```bash
    pip install -r requirements.txt
    ```
-
-3. Install development dependencies:
-   ```bash
-   pip install -r requirements-dev.txt
-   ```
-
-4. Set up pre-commit hooks:
-   ```bash
-   pre-commit install
-   ```
+   This includes dev/test tools (pytest, black, ruff, isort) already.
 
 ## Development Workflow
 
@@ -86,7 +77,7 @@ We use [Conventional Commits](https://www.conventionalcommits.org/):
 #### Examples
 ```bash
 feat(translate): add batch translation support
-fix(harvest): resolve Internet Archive API timeout
+fix(pipeline): remove Internet Archive harvesting
 docs(api): update API documentation
 test(monitor): add tests for monitoring service
 ```
@@ -102,7 +93,7 @@ We use the following tools for code quality:
 - **isort**: Import sorting
 - **mypy**: Type checking
 
-#### Configuration
+#### Commands
 ```bash
 # Format code
 black src tests
@@ -112,28 +103,6 @@ ruff check src tests
 
 # Sort imports
 isort src tests
-
-# Type checking
-mypy src
-```
-
-#### Pre-commit Hooks
-Pre-commit hooks automatically run these tools:
-```yaml
-# .pre-commit-config.yaml
-repos:
-  - repo: https://github.com/psf/black
-    rev: 23.3.0
-    hooks:
-      - id: black
-  - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.0.270
-    hooks:
-      - id: ruff
-  - repo: https://github.com/pycqa/isort
-    rev: 5.12.0
-    hooks:
-      - id: isort
 ```
 
 ### Testing
@@ -193,7 +162,7 @@ chinaxiv-english/
 │   ├── __init__.py
 │   ├── monitoring.py      # Consolidated monitoring service
 │   ├── translate.py       # Translation service
-│   ├── harvest_ia.py      # Internet Archive harvester
+│   ├── harvest_chinaxiv.py      # Direct harvest experiments (optional)
 │   ├── render.py          # Site rendering
 │   ├── search_index.py    # Search index generation
 │   └── ...
@@ -223,8 +192,8 @@ Consolidated service combining alerts, analytics, and performance monitoring.
 #### Translation Service (`src/translate.py`)
 Handles translation of Chinese papers to English using OpenRouter API.
 
-#### Internet Archive Harvester (`src/harvest_ia.py`)
-Harvests papers from Internet Archive's ChinaXiv mirror collection.
+#### Harvesting
+Internet Archive approach has been removed. Provide records under `data/records/` via custom ingestion or experimental direct harvesters.
 
 #### Site Renderer (`src/render.py`)
 Generates static HTML pages for the site.
@@ -294,8 +263,7 @@ When requesting features, please include:
 
 ### Local Development
 ```bash
-# Run the full pipeline locally
-python -m src.harvest_ia --limit 5
+# Run the full pipeline locally (harvest removed; ensure records exist if needed)
 python -m src.pipeline --limit 5
 python -m src.render
 python -m src.search_index
