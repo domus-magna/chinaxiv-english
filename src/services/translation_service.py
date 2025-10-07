@@ -531,41 +531,55 @@ class TranslationService:
     def _retry_translate_with_prompt(
         self, translation: Dict[str, Any], retry_prompt: str
     ) -> Dict[str, Any]:
-        """Simple retry with custom prompt."""
-        # Extract text fields for retry
-        text_fields = ["title_en", "abstract_en", "body_en"]
-        combined_text = " ".join(
-            str(translation.get(field, ""))
-            for field in text_fields
-            if translation.get(field)
-        )
+        """
+        Retry by selectively re-translating only the fields that still
+        contain Chinese characters. This avoids corrupting fields by
+        sending the entire prompt+text to the LLM and ensures we update
+        all affected fields (title, abstract, and body paragraphs).
 
-        # Add retry prompt to the text
-        full_prompt = f"{retry_prompt}\n\nOriginal text:\n{combined_text}"
+        Note: The provided `retry_prompt` is intentionally not injected
+        into the user content. Our system prompt already instructs the
+        model to translate Chinese to English; re-translating the field
+        text is sufficient and safer.
+        """
+        from ..qa_filter import ChineseCharacterDetector
 
-        # Retry with prompt using the configured model/glossary
-        # Prefer instance-resolved defaults to avoid relying on config schema details
-        retry_text = self._call_openrouter_with_fallback(
-            full_prompt,
-            getattr(self, "model", None)
-            or self.config.get("models", {}).get(
-                "default_slug", "deepseek/deepseek-v3.2-exp"
-            ),
-            (
-                getattr(self, "glossary", None)
-                if hasattr(self, "glossary")
-                else (self.config.get("glossary") or [])
-            ),
-        )
-
-        # Parse retry result back into translation format
-        # For simplicity, we'll assume the retry returns the corrected translation
-        # In practice, you might need more sophisticated parsing
+        detector = ChineseCharacterDetector()
         retry_translation = translation.copy()
 
-        # Update the fields with retry result
-        # This is a simplified approach - in practice you might need to parse the response
-        retry_translation["abstract_en"] = retry_text
+        # Helper to re-translate a single string field if it contains Chinese
+        def _fix_field(text: str) -> str:
+            if not text:
+                return text
+            # If any Chinese characters detected, re-translate just this field
+            if detector.find_chinese_chars(text):
+                return self.translate_field(
+                    text,
+                    model=self.model,
+                    dry_run=False,
+                    glossary_override=self.glossary,
+                )
+            return text
+
+        # Title
+        if isinstance(retry_translation.get("title_en"), str):
+            retry_translation["title_en"] = _fix_field(retry_translation["title_en"])
+
+        # Abstract
+        if isinstance(retry_translation.get("abstract_en"), str):
+            retry_translation["abstract_en"] = _fix_field(
+                retry_translation["abstract_en"]
+            )
+
+        # Body paragraphs (list of strings)
+        if isinstance(retry_translation.get("body_en"), list):
+            new_body: List[str] = []
+            for para in retry_translation["body_en"]:
+                if isinstance(para, str):
+                    new_body.append(_fix_field(para))
+                else:
+                    new_body.append(para)
+            retry_translation["body_en"] = new_body
 
         return retry_translation
 
