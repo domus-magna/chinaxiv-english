@@ -9,7 +9,6 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-from src.harvest_ia import harvest_chinaxiv_metadata
 from src.services.translation_service import TranslationService
 from src.job_queue import JobQueue
 from src.monitoring import MonitoringService
@@ -17,43 +16,7 @@ from src.render import render_site, load_translated
 from src.batch_translate import init_queue, show_status
 
 
-class TestHarvestDataStructure:
-    """Test harvest data structure handling."""
-    
-    def test_harvest_returns_tuple_with_papers_list(self):
-        """Test that harvest returns tuple with papers list."""
-        with patch('requests.get') as mock_get:
-            # Mock response
-            mock_response = MagicMock()
-            mock_response.json.return_value = {
-                'response': {
-                    'docs': [
-                        {
-                            'identifier': 'test-paper-001',
-                            'title': 'Test Paper',
-                            'abstract': 'Test abstract'
-                        }
-                    ]
-                }
-            }
-            mock_get.return_value = mock_response
-            
-            result = harvest_chinaxiv_metadata(limit=1)
-            
-            # Should return tuple
-            assert isinstance(result, tuple)
-            assert len(result) == 2
-            
-            # First element should be list of papers
-            papers = result[0]
-            assert isinstance(papers, list)
-            assert len(papers) == 1
-            
-            # Paper should be dict
-            paper = papers[0]
-            assert isinstance(paper, dict)
-            assert 'id' in paper
-            assert 'title' in paper
+ 
 
 
 class TestTranslationServiceBugs:
@@ -437,13 +400,13 @@ class TestIntegrationBugs:
                 # Create real paper structure
                 os.makedirs('data/selected', exist_ok=True)
                 real_paper = {
-                    'id': 'ia-ChinaXiv-201601.00051V1',
+                    'id': 'paper-201601.00051V1',
                     'title': '国史知识的语义揭示与组织方法研究',
                     'abstract': '国史知识的语义揭示与组织方法研究 作者： 王颖 1 张智雄 1 孙辉 2 雷枫 2',
                     'body': ['国史知识的语义揭示与组织方法研究']
                 }
                 
-                with open('data/selected/ia-ChinaXiv-201601.00051V1.json', 'w', encoding='utf-8') as f:
+                with open('data/selected/paper-201601.00051V1.json', 'w', encoding='utf-8') as f:
                     json.dump(real_paper, f, indent=2, ensure_ascii=False)
                 
                 # Test translation service
@@ -467,7 +430,7 @@ class TestIntegrationBugs:
                 
                 # Save translation
                 os.makedirs('data/translated', exist_ok=True)
-                with open('data/translated/ia-ChinaXiv-201601.00051V1.json', 'w', encoding='utf-8') as f:
+                with open('data/translated/paper-201601.00051V1.json', 'w', encoding='utf-8') as f:
                     json.dump(translation, f, indent=2, ensure_ascii=False)
                 
                 # Test rendering
@@ -486,8 +449,8 @@ class TestIntegrationBugs:
                 render_site(translations)
                 
                 # Check output
-                assert os.path.exists('site/items/ia-ChinaXiv-201601.00051V1/index.html')
-                assert os.path.exists('site/items/ia-ChinaXiv-201601.00051V1/ia-ChinaXiv-201601.00051V1.md')
+                assert os.path.exists('site/items/paper-201601.00051V1/index.html')
+                assert os.path.exists('site/items/paper-201601.00051V1/paper-201601.00051V1.md')
                 
                 # Test search index
                 from src.search_index import run_cli as build_search_index

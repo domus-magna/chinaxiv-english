@@ -1,16 +1,13 @@
 #!/usr/bin/env python3
 """
-DEPRECATED: Direct ChinaXiv scraping via BrightData.
-Use Internet Archive harvester in src/harvest_ia.py instead.
+Direct ChinaXiv scraping via BrightData (default harvester).
 
 Harvest fresh papers from ChinaXiv using BrightData Web Unlocker.
-
 Scrapes papers by sequential ID probing for specified month ranges.
-Outputs IA-compatible JSON format for integration with translation pipeline.
+Outputs normalized JSON for integration with the translation pipeline.
 """
 
 import argparse
-import json
 import os
 import re
 import time
@@ -47,7 +44,7 @@ class ChinaXivScraper:
             "total_attempts": 0,
             "successful_scrapes": 0,
             "failed_scrapes": 0,
-            "consecutive_404s": 0
+            "consecutive_404s": 0,
         }
 
     def fetch_page(self, paper_id: str) -> Optional[str]:
@@ -64,21 +61,14 @@ class ChinaXivScraper:
 
         headers = {
             "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
 
-        payload = {
-            "zone": self.zone,
-            "url": url,
-            "format": "raw"
-        }
+        payload = {"zone": self.zone, "url": url, "format": "raw"}
 
         try:
             response = requests.post(
-                self.api_url,
-                headers=headers,
-                json=payload,
-                timeout=60
+                self.api_url, headers=headers, json=payload, timeout=60
             )
 
             self.stats["total_attempts"] += 1
@@ -87,7 +77,7 @@ class ChinaXivScraper:
                 html = response.text
 
                 # Check for error responses from ChinaXiv
-                if '<ErrorResponseData>' in html or len(html) < 1000:
+                if "<ErrorResponseData>" in html or len(html) < 1000:
                     self.stats["consecutive_404s"] += 1
                     return None
 
@@ -95,7 +85,9 @@ class ChinaXivScraper:
                 return html
 
             else:
-                log(f"BrightData error {response.status_code} for {paper_id}: {response.text[:200]}")
+                log(
+                    f"BrightData error {response.status_code} for {paper_id}: {response.text[:200]}"
+                )
                 self.stats["consecutive_404s"] += 1
                 return None
 
@@ -116,10 +108,10 @@ class ChinaXivScraper:
             Paper metadata dict, or None if parsing fails
         """
         try:
-            soup = BeautifulSoup(html, 'html.parser')
+            soup = BeautifulSoup(html, "html.parser")
 
             # Title
-            title_elem = soup.find('h1')
+            title_elem = soup.find("h1")
             title = title_elem.get_text(strip=True) if title_elem else ""
 
             if not title or len(title) < 10:
@@ -127,30 +119,34 @@ class ChinaXivScraper:
                 return None
 
             # Authors
-            author_links = soup.find_all('a', href=lambda x: x and 'field=author' in x)
-            creators = [link.get_text(strip=True) for link in author_links if link.get_text(strip=True)]
+            author_links = soup.find_all("a", href=lambda x: x and "field=author" in x)
+            creators = [
+                link.get_text(strip=True)
+                for link in author_links
+                if link.get_text(strip=True)
+            ]
 
             # Abstract (find text after "摘要:")
             abstract = ""
-            abstract_marker = soup.find('b', string=re.compile(r'摘要[:：]'))
+            abstract_marker = soup.find("b", string=re.compile(r"摘要[:：]"))
             if abstract_marker:
                 # Get parent element and extract text
                 parent = abstract_marker.parent
                 if parent:
                     full_text = parent.get_text(strip=False)
                     # Extract text after marker
-                    match = re.search(r'摘要[:：]\s*(.+)', full_text, re.DOTALL)
+                    match = re.search(r"摘要[:：]\s*(.+)", full_text, re.DOTALL)
                     if match:
                         abstract = match.group(1).strip()
 
             # Submission date
             date_str = ""
-            date_marker = soup.find('b', string=re.compile(r'提交时间[:：]'))
+            date_marker = soup.find("b", string=re.compile(r"提交时间[:：]"))
             if date_marker:
                 parent = date_marker.parent
                 if parent:
                     text = parent.get_text(strip=True)
-                    match = re.search(r'提交时间[:：]\s*(.+)', text)
+                    match = re.search(r"提交时间[:：]\s*(.+)", text)
                     if match:
                         date_str = match.group(1).strip()
 
@@ -169,19 +165,23 @@ class ChinaXivScraper:
 
             # Category/Subjects
             subjects = []
-            category_marker = soup.find('b', string=re.compile(r'分类[:：]'))
+            category_marker = soup.find("b", string=re.compile(r"分类[:：]"))
             if category_marker:
                 parent = category_marker.parent
                 if parent:
-                    category_links = parent.find_all('a')
-                    subjects = [link.get_text(strip=True) for link in category_links if link.get_text(strip=True)]
+                    category_links = parent.find_all("a")
+                    subjects = [
+                        link.get_text(strip=True)
+                        for link in category_links
+                        if link.get_text(strip=True)
+                    ]
 
             # PDF URL
             pdf_url = ""
-            pdf_link = soup.find('a', href=lambda x: x and 'filetype=pdf' in x)
+            pdf_link = soup.find("a", href=lambda x: x and "filetype=pdf" in x)
             if pdf_link:
-                href = pdf_link.get('href', '')
-                if href.startswith('/'):
+                href = pdf_link.get("href", "")
+                if href.startswith("/"):
                     pdf_url = f"https://chinaxiv.org{href}"
                 else:
                     pdf_url = href
@@ -197,11 +197,8 @@ class ChinaXivScraper:
                 "date": date_iso or f"{paper_id[:4]}-{paper_id[4:6]}-01T00:00:00Z",
                 "source_url": f"https://chinaxiv.org/abs/{paper_id}",
                 "pdf_url": pdf_url,
-                "license": {
-                    "raw": "",
-                    "derivatives_allowed": None
-                },
-                "setSpec": None
+                "license": {"raw": "", "derivatives_allowed": None},
+                "setSpec": None,
             }
 
             return record
@@ -239,7 +236,7 @@ class ChinaXivScraper:
         self,
         year_month: str,
         checkpoint: Optional[Dict] = None,
-        max_consecutive_404s: int = 50
+        max_consecutive_404s: int = 50,
     ) -> List[Dict]:
         """
         Scrape all papers for a given month.
@@ -279,7 +276,9 @@ class ChinaXivScraper:
             else:
                 # Check if we should stop
                 if self.stats["consecutive_404s"] >= max_consecutive_404s:
-                    log(f"Stopping {year_month}: {max_consecutive_404s} consecutive 404s")
+                    log(
+                        f"Stopping {year_month}: {max_consecutive_404s} consecutive 404s"
+                    )
                     break
 
         log(f"Finished {year_month}: {len(papers)} papers scraped")
@@ -294,7 +293,7 @@ class ChinaXivScraper:
             "year_month": year_month,
             "last_id_num": last_id_num,
             "papers": papers,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
 
         checkpoint_path = str(checkpoint_dir / f"chinaxiv_{year_month}.json")
@@ -319,14 +318,27 @@ class ChinaXivScraper:
 
 def run_cli():
     """CLI entry point."""
-    parser = argparse.ArgumentParser(description="Harvest fresh ChinaXiv papers via BrightData")
+    parser = argparse.ArgumentParser(
+        description="Harvest fresh ChinaXiv papers via BrightData"
+    )
     parser.add_argument("--start", help="Start month (YYYYMM)")
     parser.add_argument("--end", help="End month (YYYYMM)")
     parser.add_argument("--month", help="Single month to scrape (YYYYMM)")
     parser.add_argument("--resume", action="store_true", help="Resume from checkpoint")
-    parser.add_argument("--dry-run", action="store_true", help="Test mode (scrape but don't save)")
-    parser.add_argument("--rate-limit", type=float, default=0.5, help="Seconds between requests (default: 0.5)")
-    parser.add_argument("--reverse", action="store_true", help="Process months in reverse order (most recent first)")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Test mode (scrape but don't save)"
+    )
+    parser.add_argument(
+        "--rate-limit",
+        type=float,
+        default=0.5,
+        help="Seconds between requests (default: 0.5)",
+    )
+    parser.add_argument(
+        "--reverse",
+        action="store_true",
+        help="Process months in reverse order (most recent first)",
+    )
     args = parser.parse_args()
 
     # Load environment
@@ -394,7 +406,7 @@ def run_cli():
             "total_attempts": 0,
             "successful_scrapes": 0,
             "failed_scrapes": 0,
-            "consecutive_404s": 0
+            "consecutive_404s": 0,
         }
 
     log("\nHarvest complete!")

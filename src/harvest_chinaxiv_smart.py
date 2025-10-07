@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 """
-DEPRECATED: Direct ChinaXiv scraping.
-Use Internet Archive harvester in src/harvest_ia.py instead.
+Direct ChinaXiv scraping (smart mode).
 
-Smart ChinaXiv harvester using pre-analyzed max IDs.
-
-Based on IA data + homepage analysis, uses known reasonable maxes
-for each month to avoid expensive binary search.
+Smart ChinaXiv harvester using pre-analyzed max IDs for recent months
+to limit probing. Suitable for fast, low-cost incremental harvests.
 """
 
 import argparse
@@ -21,18 +18,18 @@ import requests
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
-from .utils import log, read_json, write_json
+from .utils import log, write_json
 
 
 # Known/estimated max IDs per month (based on IA data + homepage)
 DEFAULT_MAX_IDS = {
-    "202504": 400,   # April: IA showed ~382
-    "202505": 350,   # May: IA showed ~317
-    "202506": 150,   # June: IA showed ~109
-    "202507": 400,   # July: Homepage shows 354, use buffer
-    "202508": 450,   # Aug: Homepage shows 418, use buffer
-    "202509": 300,   # Sept: Homepage shows 257, use buffer
-    "202510": 50,    # Oct: Only 1 on homepage, but use buffer
+    "202504": 400,  # April: IA showed ~382
+    "202505": 350,  # May: IA showed ~317
+    "202506": 150,  # June: IA showed ~109
+    "202507": 400,  # July: Homepage shows 354, use buffer
+    "202508": 450,  # Aug: Homepage shows 418, use buffer
+    "202509": 300,  # Sept: Homepage shows 257, use buffer
+    "202510": 50,  # Oct: Only 1 on homepage, but use buffer
 }
 
 
@@ -46,40 +43,29 @@ class SmartChinaXivScraper:
         self.base_url = "https://chinaxiv.org/abs"
         self.api_url = "https://api.brightdata.com/request"
 
-        self.stats = {
-            "total_attempts": 0,
-            "successful_scrapes": 0,
-            "failed_scrapes": 0
-        }
+        self.stats = {"total_attempts": 0, "successful_scrapes": 0, "failed_scrapes": 0}
 
     def fetch_page(self, url: str) -> Optional[str]:
         """Fetch page HTML using BrightData."""
         headers = {
             "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
 
-        payload = {
-            "zone": self.zone,
-            "url": url,
-            "format": "raw"
-        }
+        payload = {"zone": self.zone, "url": url, "format": "raw"}
 
         try:
             time.sleep(self.rate_limit)
 
             response = requests.post(
-                self.api_url,
-                headers=headers,
-                json=payload,
-                timeout=60
+                self.api_url, headers=headers, json=payload, timeout=60
             )
 
             self.stats["total_attempts"] += 1
 
             if response.status_code == 200:
                 html = response.text
-                if '<ErrorResponseData>' in html or len(html) < 1000:
+                if "<ErrorResponseData>" in html or len(html) < 1000:
                     return None
                 return html
 
@@ -92,37 +78,41 @@ class SmartChinaXivScraper:
     def parse_paper(self, html: str, paper_id: str) -> Optional[Dict]:
         """Parse paper metadata from HTML."""
         try:
-            soup = BeautifulSoup(html, 'html.parser')
+            soup = BeautifulSoup(html, "html.parser")
 
             # Title
-            title_elem = soup.find('h1')
+            title_elem = soup.find("h1")
             title = title_elem.get_text(strip=True) if title_elem else ""
             if not title or len(title) < 10:
                 return None
 
             # Authors
-            author_links = soup.find_all('a', href=lambda x: x and 'field=author' in x)
-            creators = [link.get_text(strip=True) for link in author_links if link.get_text(strip=True)]
+            author_links = soup.find_all("a", href=lambda x: x and "field=author" in x)
+            creators = [
+                link.get_text(strip=True)
+                for link in author_links
+                if link.get_text(strip=True)
+            ]
 
             # Abstract
             abstract = ""
-            abstract_marker = soup.find('b', string=re.compile(r'摘要[:：]'))
+            abstract_marker = soup.find("b", string=re.compile(r"摘要[:：]"))
             if abstract_marker:
                 parent = abstract_marker.parent
                 if parent:
                     full_text = parent.get_text(strip=False)
-                    match = re.search(r'摘要[:：]\s*(.+)', full_text, re.DOTALL)
+                    match = re.search(r"摘要[:：]\s*(.+)", full_text, re.DOTALL)
                     if match:
                         abstract = match.group(1).strip()
 
             # Submission date
             date_str = ""
-            date_marker = soup.find('b', string=re.compile(r'提交时间[:：]'))
+            date_marker = soup.find("b", string=re.compile(r"提交时间[:：]"))
             if date_marker:
                 parent = date_marker.parent
                 if parent:
                     text = parent.get_text(strip=True)
-                    match = re.search(r'提交时间[:：]\s*(.+)', text)
+                    match = re.search(r"提交时间[:：]\s*(.+)", text)
                     if match:
                         date_str = match.group(1).strip()
 
@@ -142,19 +132,25 @@ class SmartChinaXivScraper:
 
             # Subjects
             subjects = []
-            category_marker = soup.find('b', string=re.compile(r'分类[:：]'))
+            category_marker = soup.find("b", string=re.compile(r"分类[:：]"))
             if category_marker:
                 parent = category_marker.parent
                 if parent:
-                    category_links = parent.find_all('a')
-                    subjects = [link.get_text(strip=True) for link in category_links if link.get_text(strip=True)]
+                    category_links = parent.find_all("a")
+                    subjects = [
+                        link.get_text(strip=True)
+                        for link in category_links
+                        if link.get_text(strip=True)
+                    ]
 
             # PDF URL
             pdf_url = ""
-            pdf_link = soup.find('a', href=lambda x: x and 'filetype=pdf' in x)
+            pdf_link = soup.find("a", href=lambda x: x and "filetype=pdf" in x)
             if pdf_link:
-                href = pdf_link.get('href', '')
-                pdf_url = f"https://chinaxiv.org{href}" if href.startswith('/') else href
+                href = pdf_link.get("href", "")
+                pdf_url = (
+                    f"https://chinaxiv.org{href}" if href.startswith("/") else href
+                )
 
             # Build record
             record = {
@@ -168,7 +164,7 @@ class SmartChinaXivScraper:
                 "source_url": f"https://chinaxiv.org/abs/{paper_id}",
                 "pdf_url": pdf_url,
                 "license": {"raw": "", "derivatives_allowed": None},
-                "setSpec": None
+                "setSpec": None,
             }
 
             return record
@@ -265,10 +261,16 @@ def run_cli():
         log(f"\nStats for {year_month}:")
         log(f"  Total attempts: {scraper.stats['total_attempts']}")
         log(f"  Successful: {scraper.stats['successful_scrapes']}")
-        log(f"  Hit rate: {scraper.stats['successful_scrapes'] / max(1, scraper.stats['total_attempts']) * 100:.1f}%")
+        log(
+            f"  Hit rate: {scraper.stats['successful_scrapes'] / max(1, scraper.stats['total_attempts']) * 100:.1f}%"
+        )
 
         # Reset
-        scraper.stats = {"total_attempts": 0, "successful_scrapes": 0, "failed_scrapes": 0}
+        scraper.stats = {
+            "total_attempts": 0,
+            "successful_scrapes": 0,
+            "failed_scrapes": 0,
+        }
 
     log("\nHarvest complete!")
 

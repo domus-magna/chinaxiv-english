@@ -7,7 +7,6 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from .utils import (
     http_get,
-    load_yaml,
     log,
     write_json,
     ensure_dir,
@@ -40,17 +39,14 @@ def construct_pdf_url(identifier: str) -> str:
 def infer_license(item: Dict) -> Dict[str, Any]:
     """
     DISABLED: We do not care about licenses. All papers translated in full.
-    
+
     Infer license from Internet Archive metadata.
 
     For V1, default to unknown (derivatives_allowed: None).
     Future: check item metadata for license info.
     """
     # DISABLED: We do not care about licenses
-    return {
-        "raw": "",
-        "derivatives_allowed": True  # Always allow derivatives
-    }
+    return {"raw": "", "derivatives_allowed": True}  # Always allow derivatives
 
 
 def normalize_ia_record(item: Dict) -> Dict[str, Any]:
@@ -66,27 +62,25 @@ def normalize_ia_record(item: Dict) -> Dict[str, Any]:
         subject -> subjects (ensure list)
         date -> date
     """
-    identifier = item.get('identifier', '')
+    identifier = item.get("identifier", "")
 
     return {
         "id": f"ia-{identifier}",
-        "oai_identifier": item.get('chinaxiv', ''),
-        "title": item.get('title', ''),
-        "creators": ensure_list(item.get('creator')),
-        "abstract": item.get('description', ''),
-        "subjects": ensure_list(item.get('subject')),
-        "date": item.get('date', ''),
+        "oai_identifier": item.get("chinaxiv", ""),
+        "title": item.get("title", ""),
+        "creators": ensure_list(item.get("creator")),
+        "abstract": item.get("description", ""),
+        "subjects": ensure_list(item.get("subject")),
+        "date": item.get("date", ""),
         "source_url": f"https://archive.org/details/{identifier}",
         "pdf_url": construct_pdf_url(identifier),
         "license": infer_license(item),
-        "setSpec": None  # IA doesn't use sets
+        "setSpec": None,  # IA doesn't use sets
     }
 
 
 def harvest_chinaxiv_metadata(
-    cursor: Optional[str] = None,
-    limit: int = 10000,
-    min_year: Optional[int] = None
+    cursor: Optional[str] = None, limit: int = 10000, min_year: Optional[int] = None
 ) -> Tuple[List[Dict], Optional[str]]:
     """
     Harvest ChinaXiv metadata from Internet Archive.
@@ -104,21 +98,23 @@ def harvest_chinaxiv_metadata(
 
     url = "https://archive.org/services/search/v1/scrape"
     params = {
-        'fields': 'identifier,chinaxiv,title,creator,subject,date,description',
-        'q': 'collection:chinaxivmirror',
-        'count': api_limit
+        "fields": "identifier,chinaxiv,title,creator,subject,date,description",
+        "q": "collection:chinaxivmirror",
+        "count": api_limit,
     }
     if cursor:
-        params['cursor'] = cursor
+        params["cursor"] = cursor
 
-    log(f"Fetching from IA (limit={api_limit}, cursor={cursor[:20] if cursor else 'none'})")
+    log(
+        f"Fetching from IA (limit={api_limit}, cursor={cursor[:20] if cursor else 'none'})"
+    )
     resp = http_get(url, params=params)
     try:
         data = resp.json()
     except Exception as e:
         raise RuntimeError(f"Invalid JSON from IA scrape endpoint: {e}")
 
-    items = data.get('items', [])
+    items = data.get("items", [])
     log(f"Received {len(items)} items from IA")
 
     # Normalize all items
@@ -128,7 +124,7 @@ def harvest_chinaxiv_metadata(
 
         # Apply year filter if specified
         if min_year is not None:
-            date_str = normalized.get('date', '')
+            date_str = normalized.get("date", "")
             if date_str and len(date_str) >= 4:
                 year = date_str[:4]
                 if year.isdigit() and int(year) < min_year:
@@ -144,7 +140,7 @@ def harvest_chinaxiv_metadata(
         records = records[:limit]
         log(f"Truncated to {limit} records")
 
-    next_cursor = data.get('cursor')
+    next_cursor = data.get("cursor")
 
     return records, next_cursor
 
@@ -166,9 +162,7 @@ def harvest_all_records(min_year: Optional[int] = None) -> List[Dict]:
     while True:
         batch += 1
         records, next_cursor = harvest_chinaxiv_metadata(
-            cursor=cursor,
-            limit=10000,
-            min_year=min_year
+            cursor=cursor, limit=10000, min_year=min_year
         )
 
         all_records.extend(records)
@@ -190,21 +184,16 @@ def run_cli() -> None:
         "--limit",
         type=int,
         default=10000,
-        help="Max records per batch (default: 10000)"
+        help="Max records per batch (default: 10000)",
     )
-    parser.add_argument(
-        "--cursor",
-        help="Resume from cursor (for pagination)"
-    )
+    parser.add_argument("--cursor", help="Resume from cursor (for pagination)")
     parser.add_argument(
         "--all",
         action="store_true",
-        help="Harvest all records (paginate until exhausted)"
+        help="Harvest all records (paginate until exhausted)",
     )
     parser.add_argument(
-        "--min-year",
-        type=int,
-        help="Filter for papers >= this year (e.g., 2017)"
+        "--min-year", type=int, help="Filter for papers >= this year (e.g., 2017)"
     )
     args = parser.parse_args()
 
@@ -221,9 +210,7 @@ def run_cli() -> None:
     else:
         # Single batch
         records, next_cursor = harvest_chinaxiv_metadata(
-            cursor=args.cursor,
-            limit=args.limit,
-            min_year=args.min_year
+            cursor=args.cursor, limit=args.limit, min_year=args.min_year
         )
 
         # Save to data/records/

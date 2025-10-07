@@ -1,26 +1,11 @@
-# Data source: Internet Archive ChinaXiv mirror
-internet_archive:
-  collection: "chinaxivmirror"
-  base_url: "https://archive.org"
-  scrape_endpoint: "/services/search/v1/scrape"
-  metadata_endpoint: "/metadata"
-  download_endpoint: "/download"
-  batch_size: 10000  # Max items per API call
-  min_year: 2017  # Filter for papers >= this year (Attention Is All You Need: June 2017)
+data_source:
+  mode: "manual"  # 'manual' or 'custom' (external harvester). Internet Archive removed.
 
-# DEPRECATED: OAI-PMH endpoint blocked by bot detection
-# oai:
-#   base_url: "https://chinaxiv.org/oai/OAIHandler"  # BLOCKED - do not use
-#   sets: []  # e.g., ["physics:astro-ph"]
-#   metadata_prefix: "oai_eprint"
-#   date_window_days: 1
-
-# DEPRECATED: Proxy not needed with Internet Archive
-# proxy:
-#   enabled: false  # Set to true to use proxy
-#   http: "http://127.0.0.1:1087"  # Example: local proxy
-#   https: "http://127.0.0.1:1087"  # Or use SOCKS: "socks5://127.0.0.1:1080"
-#   # Alternatively, set env vars: HTTP_PROXY, HTTPS_PROXY, or SOCKS5_PROXY
+# Optional proxy configuration (for custom harvesters or PDF fetches)
+proxy:
+  enabled: false
+  http: "http://127.0.0.1:1087"
+  https: "http://127.0.0.1:1087"
 
 models:
   default_slug: "deepseek/deepseek-v3.2-exp"
@@ -28,9 +13,9 @@ models:
     - "z-ai/glm-4.5-air"
 translation:
   batch_paragraphs: false
+  retry_chinese_chars: true  # Enable retry for Chinese characters
 
 formatting:
-  mode: heuristic  # 'heuristic' or 'llm'
   # model: deepseek/deepseek-v3.2-exp  # optional override
   temperature: 0.1
 

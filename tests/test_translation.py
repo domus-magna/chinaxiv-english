@@ -75,6 +75,7 @@ class TestTranslationService:
         # Check translation calls
         assert mock_translate.call_count == 4
     
+    @patch.dict('os.environ', {'OPENROUTER_API_KEY': 'test-key'})
     @patch('src.http_client.get_session')
     def test_call_api(self, mock_get_session):
         """Test API call."""
@@ -95,6 +96,7 @@ class TestTranslationService:
         assert result == "Translated text"
         mock_session.post.assert_called_once()
     
+    @patch.dict('os.environ', {'OPENROUTER_API_KEY': 'test-key'})
     @patch('src.http_client.get_session')
     def test_call_api_error(self, mock_get_session):
         """Test API call error."""

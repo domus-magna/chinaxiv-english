@@ -30,7 +30,7 @@ python3 -m pip install -r requirements.txt
 python3 -m src.tools.formatting_compare --count 3
 
 # Or specify exact IDs
-# python3 -m src.tools.formatting_compare --ids ia-ChinaXiv-202503.00066V2 ia-ChinaXiv-202502.00265V1
+# python3 -m src.tools.formatting_compare --ids paper-202503-00066 paper-202502-00265
 ```
 Notes:
 - The tool runs a math-safe LLM formatter and falls back to heuristics if the LLM call fails.
@@ -61,4 +61,3 @@ Extra: Few-shot Examples
 
 Done
 - Once the API key is available and the command above runs, the LLM ‘After’ column on the sample pages will reflect the improved formatting.
-

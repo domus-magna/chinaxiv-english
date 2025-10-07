@@ -11,12 +11,12 @@
 - Setup env: `python -m venv .venv && source .venv/bin/activate`
 - Install deps: `pip install -r requirements.txt`
 - Run pipeline (local smoke):
-  - Harvest: `python -m src.harvest_ia --limit 10` (or `--all` for full harvest)
+  - Harvest (BrightData, optimized): `python -m src.harvest_chinaxiv_optimized --month $(date -u +"%Y%m")`
   - Translate: `python -m src.translate --dry-run`
   - Render + index: `python -m src.render && python -m src.search_index`
 - Preview site: `python -m http.server -d site 8001`
 - CI: Nightly GitHub Actions builds and deploys `site/` to Pages (see PRD).
-- Note: `src/harvest_oai.py` is deprecated (ChinaXiv OAI-PMH blocked); use `src/harvest_ia.py` instead.
+- Note: Internet Archive approach is removed. Default harvesting uses BrightData (set `BRIGHTDATA_API_KEY` and `BRIGHTDATA_ZONE`).
 
 ### Background Task Guidelines
 - **Always run long-running tasks in the background** to avoid blocking the terminal
@@ -27,7 +27,77 @@
 - Examples:
   - Formatting samples: `python -m src.tools.formatting_compare --count 5 &`
   - Translation pipeline: `python -m src.translate &`
-  - Site server: `python -m http.server -d site 8001 &`
+- Site server: `python -m http.server -d site 8001 &`
+
+## Agent Response Style & Depth (Required)
+
+This project requires agents to communicate in full, detailed prose that prioritizes clarity over brevity. Use complete sentences and cohesive paragraphs to explain decisions, call out assumptions, and describe tradeoffs with practical impact. Bulleted summaries are welcome for scanability, but they must be supported by descriptive prose. The goal is for a teammate to understand not only what will be done, but why it is the right choice given our constraints.
+
+### Simplicity-First Design Philosophy (Critical)
+
+**Always seek out the simplest and most maintainable implementation first.** This is a core principle that must guide all technical decisions and proposals.
+
+**Overengineering Prevention Checklist:**
+- Before proposing any solution, ask: "What is the simplest approach that solves this problem?"
+- Challenge every component: "Is this really necessary, or can we achieve the same result with less complexity?"
+- Prefer in-place modifications over new services, classes, or modules
+- Choose hardcoded values over configuration when the complexity isn't justified
+- Use basic error handling over sophisticated retry mechanisms unless proven necessary
+- Implement monitoring and alerting only when the problem justifies the infrastructure
+
+**Complexity Red Flags to Avoid:**
+- Separate services for single-purpose functionality
+- Multiple configuration parameters for simple features
+- Sophisticated state management for straightforward operations
+- Circuit breakers, retry mechanisms, or monitoring for basic functionality
+- Context-aware logic when simple rules suffice
+- Multiple validation layers when one is sufficient
+
+**When Complexity is Justified:**
+- The problem genuinely requires sophisticated solutions (e.g., distributed systems, high availability)
+- The complexity provides measurable value that outweighs maintenance costs
+- The solution is proven to be necessary through real-world usage
+- The complexity is isolated and doesn't affect other parts of the system
+
+**Implementation Guidelines:**
+- Start with the simplest possible solution
+- Add complexity only when the simple solution fails
+- Document why each piece of complexity is necessary
+- Provide clear rollback paths for any complex features
+- Test simple solutions thoroughly before considering complexity
+
+What to include in most responses:
+
+1) Context and assumptions
+   - Briefly restate the problem in your own words.
+   - List any assumptions, constraints, or prerequisites that shape the solution (e.g., cost ceilings, CI limits, data availability, external API quotas).
+
+2) Options considered with tradeoff analysis
+   - Present realistic alternatives (including “do nothing” when applicable).
+   - For each option, explain pros and cons across: correctness/completeness, performance, cost, reliability, maintainability, operational complexity, and risk.
+   - Call out edge cases, failure modes, and how we would monitor/mitigate them.
+
+3) Clear recommendation and rationale
+   - State your recommended option and why it best fits our goals.
+   - Note what would change the decision (decision gates) and how to reverse it (rollback/escape hatch) if needed.
+
+4) Concrete next steps
+   - Provide specific commands, files to edit, and checkpoints for verification.
+   - For any long-running activity, explicitly run it in the background and show how to monitor it (see Background Task Guidelines above).
+
+When to be brief:
+   - If the user explicitly requests a short or one-line answer, comply but include a single sentence acknowledging key tradeoffs or note that no material tradeoffs exist for the action.
+
+Formatting guidance (how to write):
+   - Prefer paragraphs for explanation; use bullets to summarize or enumerate choices.
+   - Reference concrete file paths, scripts, and commands (e.g., `src/harvest_chinaxiv_optimized.py`, `make dev`).
+   - Avoid unexplained jargon and shorthand. If you introduce a term (e.g., “smart mode”), define it and explain why it exists.
+   - If you’re changing defaults or behavior, describe impacts on CI, cost, and developer workflow.
+
+Example: harvesting strategy decision (illustrative)
+
+“Optimized mode” (`src/harvest_chinaxiv_optimized.py`) combines homepage parsing with binary search to determine the actual ID range per month, then scrapes only valid IDs. This delivers high completeness and predictable behavior and is our default for nightly runs and local smoke. “Smart mode” (`src/harvest_chinaxiv_smart.py`) remains available as an ad‑hoc tool for quick tests, but it is not the default and may miss late backfills or irregular ID gaps. Rollback is trivial: adjust the harvester used in CI or scripts to point back to `harvest_chinaxiv_smart.py` if needed.
+
 
 ## Coding Style & Naming Conventions
 - Python 3.11+, 4-space indent, PEP 8 + type hints.
@@ -47,7 +117,6 @@
 - **Run specific test file**: `python -m pytest tests/test_translate.py -v`
 - **Run with coverage**: `python -m pytest tests/ --cov=src --cov-report=term-missing`
 - **Run E2E tests**: `python -m pytest tests/test_e2e_simple.py -v`
-- **Run core tests only**: `python -m pytest tests/test_translate.py tests/test_tex_guard.py tests/test_format_translation.py tests/test_job_queue.py tests/test_harvest_ia.py tests/test_e2e_simple.py -v`
 - **Quick test run**: `python -m pytest tests/ -q`
 
 ## Commit & Pull Request Guidelines
@@ -56,15 +125,19 @@
 - Keep PRs small and focused; include `requirements.txt`/config updates when relevant.
 
 ## Security & Configuration Tips
-- Secrets: set `OPENROUTER_API_KEY` in CI; never commit keys.
-- Config: `src/config.yaml` defines Internet Archive endpoints, model slugs, glossary, license mappings.
+- Secrets: set `OPENROUTER_API_KEY` and BrightData creds (`BRIGHTDATA_API_KEY`, `BRIGHTDATA_ZONE`) in CI; never commit keys.
+- Config: `src/config.yaml` defines model slugs, glossary, and optional proxy settings. BrightData creds are read from `.env` or CI env.
 - Data hygiene: limit `data/raw_xml/` retention; avoid large diffs in VCS.
-- Note: `BRIGHTDATA_API_KEY` is in `.env` but not needed for IA approach (kept for potential future use).
 
 ### LLM API Key Troubleshooting (Agents)
 - Symptoms:
   - `OPENROUTER_API_KEY not set` raised by code, or OpenRouter `401 User not found` in responses.
-- Always verify environment variables when you see these errors:
+- **NEW: Automatic Environment Resolution**
+  - The system now automatically detects and resolves shell/.env mismatches
+  - Use `python -m src.tools.env_diagnose --check` to detect mismatches
+  - Use `python -m src.tools.env_diagnose --resolve` to fix mismatches
+  - Use `python -m src.tools.env_diagnose --validate` to test API keys
+- **Manual Troubleshooting** (if automatic resolution fails):
   - Shell: `echo $OPENROUTER_API_KEY` should print a non-empty value.
   - Python (within the same shell): `python3 -c "import os; print(os.getenv('OPENROUTER_API_KEY'))"`.
   - If empty, load `.env` or export the key: `export OPENROUTER_API_KEY=...`.
@@ -73,22 +146,8 @@
   - Confirm `OPENROUTER_API_KEY` secret is configured and passed to the job environment.
 - If using a proxy or different shells/terminals, make sure the key is present in the active session before running any `src.translate` or `src.tools.formatting_compare` commands.
 
-## Data Source: Internet Archive (NOT ChinaXiv OAI-PMH)
-- **Issue**: ChinaXiv OAI-PMH endpoint (`https://chinaxiv.org/oai/OAIHandler`) returns "Sorry!You have no right to access this web" - hard-blocked at application level.
-- **Solution**: We harvest from **Internet Archive's ChinaXiv mirror** collection instead.
-- **Benefits**:
-  - ✅ 30,817+ papers with full metadata (title, authors, abstract, subjects, date)
-  - ✅ Full PDFs downloadable
-  - ✅ No authentication, no geo-blocking, no bot detection
-  - ✅ Simple JSON API with cursor pagination
-  - ✅ Zero proxy costs (Bright Data not needed!)
-- **API Endpoints**:
-  - Collection: `https://archive.org/details/chinaxivmirror`
-  - Scraping API: `https://archive.org/services/search/v1/scrape?q=collection:chinaxivmirror`
-  - Metadata: `https://archive.org/metadata/{identifier}`
-  - Download: `https://archive.org/download/{identifier}/{filename}`
-- **Implementation**: See `docs/INTERNET_ARCHIVE_PLAN.md` for detailed migration plan
-- **Deprecated**: Proxy setup docs (`docs/PROXY_SETUP.md`, `docs/PROXY_REVIEW.md`) archived - not needed for IA approach
+## Data Source
+- Direct ChinaXiv scraping via BrightData is the default. OAI-PMH remains blocked; Internet Archive removed.
 
 ## Live Configuration & Deployment
 
@@ -100,13 +159,23 @@
 - **UI Improvements**: ✅ Cleaner navigation and layout
 
 ### GitHub Actions Workflows
-- **Daily Build** (`.github/workflows/build.yml`): Runs at 3 AM UTC, processes 5 papers, deploys to Cloudflare Pages
+- **Daily Build** (`.github/workflows/build.yml`): Runs at 3 AM UTC, harvests current + previous month (optimized), selects unseen items, translates all newly selected items in parallel, and deploys to Cloudflare Pages
 - **Configurable Backfill** (`.github/workflows/backfill.yml`): Configurable parallel processing via inputs (1-10 jobs, 1-100 workers per job)
+  - Both workflows persist `data/seen.json` by committing it back to the repository, ensuring cross-job deduplication.
+
+### Manual Backfill (On Demand)
+- **Harvester**: `python -m src.harvest_chinaxiv_optimized --month YYYYMM --resume` (run newest→oldest across months; background long runs with `nohup ... &`).
+- **Select**: Merge harvested months to a single records file, then `python -m src.select_and_fetch --records <merged>.json --output data/selected.json`.
+- **Translate (parallel)**: `jq -r '.[].id' data/selected.json | xargs -n1 -P 20 -I {} sh -c 'python -m src.translate "{}" || true'`.
+- **Render + Index + PDFs**: `python -m src.render && python -m src.search_index && python -m src.make_pdf`.
+ - **Persist dedupe**: Commit `data/seen.json` after successful runs to avoid reprocessing in subsequent jobs.
 
 ### Required GitHub Secrets
 - `CF_API_TOKEN`: Cloudflare API token with Pages:Edit permission
 - `CLOUDFLARE_ACCOUNT_ID`: Cloudflare Account ID
 - `OPENROUTER_API_KEY`: OpenRouter API key for translations
+- `BRIGHTDATA_API_KEY`: BrightData API key (harvest)
+- `BRIGHTDATA_ZONE`: BrightData zone name (harvest)
 - `DISCORD_WEBHOOK_URL`: Discord webhook for notifications (optional)
 
 ### Cloudflare Pages Configuration
@@ -130,9 +199,9 @@
 - **Features**: Click-to-copy addresses, QR codes, mobile-friendly
 
 ### Performance Metrics
-- **Current Daily Processing**: 5 papers/day
-- **Parallel Processing**: 100-2,000 papers/hour
-- **Full Backfill Time**: 3.4 hours (extreme parallel) to 14 days (current)
+- **Nightly Intake**: All newly harvested items (current + previous month)
+- **Parallel Translation**: Tunable; typical 10–30 concurrent workers
+- **Backfill Throughput**: 100–2,000 papers/hour depending on concurrency and content
 - **Site Performance**: <3 second load times, global CDN
 
 ### Monitoring & Maintenance

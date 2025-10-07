@@ -5,7 +5,6 @@ import glob
 import os
 import shutil
 import subprocess
-from typing import List
 
 from .utils import log
 
@@ -23,7 +22,9 @@ def md_to_pdf(md_path: str, pdf_path: str) -> bool:
 
 
 def run_cli() -> None:
-    parser = argparse.ArgumentParser(description="Generate PDFs from rendered Markdown using pandoc if available.")
+    parser = argparse.ArgumentParser(
+        description="Generate PDFs from rendered Markdown using pandoc if available."
+    )
     args = parser.parse_args()
 
     if not has_binary("pandoc"):
@@ -41,4 +42,3 @@ def run_cli() -> None:
 
 if __name__ == "__main__":
     run_cli()
-

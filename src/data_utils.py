@@ -1,19 +1,20 @@
 """
 Data processing utilities for ChinaXiv English translation.
 """
+
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Tuple
 
 
 def utc_date_range_str(days_back: int = 1) -> Tuple[str, str]:
     """
     Get UTC date range string.
-    
+
     Args:
         days_back: Number of days back from today
-        
+
     Returns:
         Tuple of (start_date, end_date) in ISO format
     """
@@ -27,10 +28,10 @@ def utc_date_range_str(days_back: int = 1) -> Tuple[str, str]:
 def stable_id_from_oai(oai_identifier: str) -> str:
     """
     Extract stable ID from OAI identifier.
-    
+
     Args:
         oai_identifier: OAI identifier (e.g., oai:chinaxiv.org:YYYY-XXXXX)
-        
+
     Returns:
         Stable ID (e.g., YYYY-XXXXX)
     """

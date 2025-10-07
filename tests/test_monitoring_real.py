@@ -1,9 +1,11 @@
 """
-Real E2E Test Monitoring
+Real E2E Test Monitoring utilities (no tests in this module).
 
-This module provides monitoring and reporting for real E2E tests,
-including cost tracking, performance metrics, and test results.
+Note: This module is intentionally excluded from active test collection
+to avoid "no tests collected" edge cases in some environments.
 """
+import pytest
+pytestmark = pytest.mark.skip("Utility module only; no tests to run")
 
 import os
 import json

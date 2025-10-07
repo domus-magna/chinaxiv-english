@@ -1,6 +1,7 @@
 """
 File service for ChinaXiv English translation.
 """
+
 from __future__ import annotations
 
 import json
@@ -17,7 +18,7 @@ def ensure_dir(path: str) -> None:
 def write_json(path: str, data: Any) -> None:
     """
     Write JSON data atomically to reduce risk of partial files.
-    
+
     Args:
         path: File path
         data: Data to write
@@ -32,10 +33,10 @@ def write_json(path: str, data: Any) -> None:
 def read_json(path: str) -> Any:
     """
     Read JSON data from file.
-    
+
     Args:
         path: File path
-        
+
     Returns:
         Parsed JSON data
     """
@@ -46,10 +47,10 @@ def read_json(path: str) -> Any:
 def read_text(path: str) -> str:
     """
     Read text from file.
-    
+
     Args:
         path: File path
-        
+
     Returns:
         File contents as string
     """
@@ -60,7 +61,7 @@ def read_text(path: str) -> str:
 def write_text(path: str, content: str) -> None:
     """
     Write text to file.
-    
+
     Args:
         path: File path
         content: Content to write
@@ -73,12 +74,12 @@ def write_text(path: str, content: str) -> None:
 def save_raw_xml(content: str, day: str, part: int) -> str:
     """
     Save raw XML content to file.
-    
+
     Args:
         content: XML content
         day: Day string (YYYY-MM-DD)
         part: Part number
-        
+
     Returns:
         Path to saved file
     """
@@ -90,10 +91,10 @@ def save_raw_xml(content: str, day: str, part: int) -> str:
 def read_seen(path: str = "data/seen.json") -> Dict[str, Any]:
     """
     Read seen.json file.
-    
+
     Args:
         path: Path to seen.json
-        
+
     Returns:
         Seen data dictionary
     """
@@ -105,7 +106,7 @@ def read_seen(path: str = "data/seen.json") -> Dict[str, Any]:
 def write_seen(seen: Dict[str, Any], path: str = "data/seen.json") -> None:
     """
     Write seen.json file.
-    
+
     Args:
         seen: Seen data dictionary
         path: Path to seen.json
@@ -116,10 +117,10 @@ def write_seen(seen: Dict[str, Any], path: str = "data/seen.json") -> None:
 def sanitize_filename(name: str) -> str:
     """
     Sanitize filename by replacing invalid characters.
-    
+
     Args:
         name: Original filename
-        
+
     Returns:
         Sanitized filename
     """

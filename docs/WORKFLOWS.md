@@ -8,13 +8,13 @@ This document describes the GitHub Actions workflows used for building, testing,
 ### Build Workflow
 - **File**: `.github/workflows/build.yml`
 - **Schedule**: Daily at 3 AM UTC
-- **Purpose**: Harvest, translate, and deploy site
-- **Inputs**: `limit` (number of papers to process)
+- **Purpose**: Harvest (optimized), translate all new items, and deploy site
+- **Inputs**: None (translates all newly selected items by default)
 
 #### Features
 - Automated daily builds
 - Manual dispatch with configurable paper limit
-- Full pipeline: harvest → translate → render → deploy
+- Full pipeline: harvest (BrightData, optimized: current + previous month) → select (dedupe) → translate (parallel) → render → deploy
 - Cloudflare Pages deployment
 - Discord notifications
 
@@ -23,32 +23,40 @@ This document describes the GitHub Actions workflows used for building, testing,
 2. Setup Python 3.11
 3. Install dependencies
 4. Run tests
-5. Build site (harvest, translate, render)
+5. Build site (select, translate all, render)
 6. Deploy to Cloudflare Pages
 
-### Backfill Workflow  
+### Backfill Workflow (Targeted by Month)
 - **File**: `.github/workflows/backfill.yml`
 - **Trigger**: Manual dispatch
-- **Purpose**: Process large batches of papers
-- **Inputs**: `total_papers`, `workers_per_job`, `parallel_jobs`
+- **Purpose**: Backfill a single month end-to-end (harvest → select → translate → render), with optional deploy
+- **Inputs**:
+  - `month` (YYYYMM): Month to backfill (required)
+  - `workers` (default: 20): Parallel translation workers
+  - `deploy` (default: true): Deploy site after backfill
 
 #### Features
-- Parallel processing with matrix strategy
-- Configurable worker count and job distribution
-- Efficient resource utilization
-- Scalable architecture
+- Optimized harvester per month
+- Single selection pass with dedupe
+- Translate all selected items in parallel
+- Optional deploy to Cloudflare Pages
 
 #### Steps
 1. Checkout code
 2. Setup Python 3.11
 3. Install dependencies
-4. Calculate job parameters
-5. Run parallel backfill translation
+4. Harvest month via `src.harvest_chinaxiv_optimized`
+5. Select new items from `data/records/chinaxiv_YYYYMM.json`
+6. Run `src.pipeline --skip-selection --workers N` (translates all, renders site)
+7. Optionally deploy via Wrangler Pages
+8. Persist dedupe state: workflow commits `data/seen.json` back to the repo to avoid reprocessing in future runs
 
 ## Configuration
 
 ### Required Secrets
 - `OPENROUTER_API_KEY`: API key for translation service
+- `BRIGHTDATA_API_KEY`: BrightData API key (harvest)
+- `BRIGHTDATA_ZONE`: BrightData zone name (harvest)
 - `CF_API_TOKEN`: Cloudflare API token for deployment
 - `DISCORD_WEBHOOK_URL`: Discord webhook for notifications (optional)
 

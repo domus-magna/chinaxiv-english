@@ -31,7 +31,7 @@ python -m pytest tests/ -q
 python -m pytest tests/test_e2e_simple.py -v
 
 # Run core functionality tests
-python -m pytest tests/test_translate.py tests/test_tex_guard.py tests/test_format_translation.py tests/test_job_queue.py tests/test_harvest_ia.py tests/test_e2e_simple.py -v
+python -m pytest tests/test_translate.py tests/test_tex_guard.py tests/test_format_translation.py tests/test_job_queue.py tests/test_e2e_simple.py -v
 
 # Run specific test file
 python -m pytest tests/test_translate.py -v
@@ -80,8 +80,8 @@ python -m pytest tests/ --cov=src --cov-report=term-missing
 
 #### Smoke Test (Local)
 ```bash
-# Harvest a few papers
-python -m src.harvest_ia --limit 10
+# Harvest current month (BrightData, optimized)
+python -m src.harvest_chinaxiv_optimized --month $(date -u +"%Y%m")
 
 # Translate in dry-run mode
 python -m src.translate --dry-run
@@ -95,8 +95,8 @@ python -m http.server -d site 8001
 
 #### Full Pipeline Test
 ```bash
-# Harvest all papers
-python -m src.harvest_ia --all
+# Harvest current month (BrightData, optimized)
+python -m src.harvest_chinaxiv_optimized --month $(date -u +"%Y%m")
 
 # Translate all papers (requires API key)
 python -m src.translate
@@ -139,7 +139,7 @@ python -m pytest tests/ --lf
 - `tests/test_tex_guard.py` - Math masking/unmasking tests
 - `tests/test_format_translation.py` - Translation formatting tests
 - `tests/test_job_queue.py` - Job queue system tests
-- `tests/test_harvest_ia.py` - Internet Archive harvesting tests
+- (Archived) Internet Archive harvesting tests
 - `tests/test_licenses.py` - License handling tests
 - `tests/test_search_index.py` - Search index building tests
 
@@ -220,6 +220,22 @@ nohup python -m src.translate > translation.log 2>&1 &
 #### OpenRouter API Key Quick Checks
 If you see `OPENROUTER_API_KEY not set` or OpenRouter returns `401 User not found`, verify the environment first:
 
+**NEW: Automatic Environment Resolution**
+```bash
+# Check for shell/.env mismatches
+python -m src.tools.env_diagnose --check
+
+# Resolve mismatches automatically
+python -m src.tools.env_diagnose --resolve
+
+# Validate API keys
+python -m src.tools.env_diagnose --validate
+
+# All-in-one diagnostic
+python -m src.tools.env_diagnose --check --resolve --validate
+```
+
+**Manual Troubleshooting** (if automatic resolution fails):
 ```bash
 # In your shell
 echo $OPENROUTER_API_KEY
@@ -238,5 +254,6 @@ python3 -m src.tools.formatting_compare --count 1
 ```
 
 Notes:
+- The system now automatically detects and resolves shell/.env mismatches
 - The HTTP client loads `.env` via `openrouter_headers()` each call; if your shell lacks the variable, ensure `.env` exists in repo root or export the key before running.
 - In CI, set `OPENROUTER_API_KEY` in repository secrets and pass it to the workflow environment.
