@@ -82,13 +82,8 @@ def run_cli() -> None:
             try:
                 import json as _json
 
-                # Load from the same rec_paths (merged if needed)
-                if len(rec_paths) > 1:
-                    _sel_src = (
-                        merged_path if "merged_path" in locals() else rec_paths[0]
-                    )
-                else:
-                    _sel_src = rec_paths[0]
+                # Use the same records source we resolved above for selection
+                _sel_src = rec_arg
                 with open(_sel_src, "r", encoding="utf-8") as f:
                     _items = _json.load(f)
                     if not isinstance(_items, list):
