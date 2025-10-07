@@ -469,11 +469,19 @@ class TranslationService:
         qa_filter = TranslationQAFilter()
         qa_result = qa_filter.check_translation(tr)
 
-        # Simple retry for Chinese characters
+        # Simple retry for Chinese characters or Chinese punctuation issues
+        # We retry when QA flagged explicit Chinese content (ideographs)
+        # or when issues mention Chinese punctuation/metadata, to cover cases
+        # where status may be FLAG_FORMATTING but Chinese is still present.
+        issues_text = " ".join(qa_result.issues or [])
+        should_retry = (
+            qa_result.status.value == "flag_chinese"
+            or (qa_result.status.value == "flag_formatting" and "Chinese" in issues_text)
+        )
         if (
             not dry_run
             and self.config.get("translation", {}).get("retry_chinese_chars", True)
-            and qa_result.status.value == "flag_chinese"
+            and should_retry
             and not tr.get("_retry_attempted")
             and len(qa_result.chinese_chars) <= 5
         ):  # Only retry for reasonable number of chars
@@ -491,7 +499,8 @@ class TranslationService:
                 # Simple quality check: fewer Chinese characters
                 retry_qa = qa_filter.check_translation(retry_translation)
                 if len(retry_qa.chinese_chars) < len(qa_result.chinese_chars):
-                    tr = retry_translation
+                    # Accept retry and re-apply formatting so _md fields match updated text
+                    tr = fmt_service.format_translation(retry_translation, dry_run=dry_run)
                     qa_result = retry_qa
                     log(
                         f"Retry successful for {rec['id']}: {len(qa_result.chinese_chars)} Chinese chars remaining"
