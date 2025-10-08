@@ -1,15 +1,19 @@
 /* arXiv-inspired CSS theme */
 
 :root {
-  --arxiv-blue: #0055aa;
-  --arxiv-red: #b31b1b;
+  --arxiv-blue: rgb(0, 0, 238); /* arXiv-like default link blue */
+  --arxiv-link-hover: #005e9d;
   --bg: #ffffff;
   --bg-light: #f9f9f9;
   --fg: #333333;
   --fg-muted: #555555;
   --border: #dddddd;
   --border-light: #eeeeee;
-  --link-hover: #003d7a;
+
+  /* Typography */
+  --font-serif: 'Times New Roman', Georgia, 'Noto Serif', serif;
+  --font-sans: 'Lucida Grande', helvetica, arial, verdana, sans-serif;
+  --font-mono: 'Courier New', Menlo, Consolas, monospace;
 }
 
 * {
@@ -18,7 +22,7 @@
 
 body {
   margin: 0;
-  font-family: 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
+  font-family: var(--font-sans);
   background: var(--bg);
   color: var(--fg);
   font-size: 16px;
@@ -33,102 +37,141 @@ main {
 }
 
 .container {
-  max-width: 920px;
-  padding: 0 20px;
+  max-width: none;
+  width: 100%;
+  padding: 0 2rem;
   margin: 0 auto;
 }
 
-/* Header */
+@media (min-width: 1200px) {
+  .container {
+    max-width: 1200px;
+  }
+}
+
+@media (min-width: 1600px) {
+  .container {
+    max-width: 1400px;
+  }
+}
+
+/* Header (arXiv-style: red band with white text) */
 .site-header {
-  background: var(--arxiv-red);
+  background: #b31b1b;
   border-bottom: 2px solid #8b1515;
-  padding: 14px 0;
+  padding: 12px 0;
+  color: #fff;
 }
 
 .site-header .container {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 1rem;
 }
 
+.header-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+}
+
+
 .site-header .brand {
-  color: white;
+  color: #fff;
   text-decoration: none;
   font-weight: 700;
   font-size: 18px;
 }
 
-.site-header .brand:hover {
-  color: #f0f0f0;
+.site-header .brand:hover { color: #f0f0f0; text-decoration: none; }
+
+/* Header search */
+.header-search {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  max-width: 400px;
+  margin: 0 2rem;
 }
 
-.nav-section {
-  display: inline-block;
-  margin-right: 32px;
-}
-
-.nav-section:last-child {
-  margin-right: 0;
-}
-
-.nav-primary {
-  margin-right: 40px;
-}
-
-.nav-primary-link {
-  color: white;
-  text-decoration: none;
-  font-size: 16px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 8px 16px;
+.header-search input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px 0 0 4px;
   background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 14px;
+  outline: none;
+}
+
+.header-search input::placeholder {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.header-search input:focus {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.header-search button {
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-left: none;
+  border-radius: 0 4px 4px 0;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.header-search button:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Donate button */
+.donate-btn {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  text-decoration: none;
+  padding: 8px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  font-size: 14px;
+  font-weight: 500;
   transition: all 0.2s ease;
 }
 
-.nav-primary-link:hover {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.4);
-  color: white;
+.donate-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  color: #fff;
   text-decoration: none;
 }
 
-.nav-label {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-right: 12px;
-  font-weight: 600;
-}
-
-.nav a {
-  color: white;
-  margin-right: 16px;
-  text-decoration: none;
+/* Header breadcrumbs */
+.header-breadcrumbs {
+  padding: 0.5rem 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
   font-size: 13px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-weight: 500;
-  transition: color 0.2s ease;
+  color: rgba(255, 255, 255, 0.8);
 }
 
-.nav a:hover {
+.header-breadcrumbs a {
+  color: rgba(255, 255, 255, 0.9);
+  text-decoration: none;
+}
+
+.header-breadcrumbs a:hover {
+  color: #fff;
   text-decoration: underline;
-  color: #f0f0f0;
 }
 
-.nav-categories {
-  border-right: 1px solid rgba(255, 255, 255, 0.2);
-  padding-right: 28px;
-}
-
-.nav-tools {
-  border-right: 1px solid rgba(255, 255, 255, 0.2);
-  padding-right: 28px;
+.header-breadcrumbs .sep {
+  margin: 0 0.5rem;
+  color: rgba(255, 255, 255, 0.6);
 }
 
 /* Footer */
@@ -197,8 +240,9 @@ main {
 
 /* Page Layout */
 .page-header {
-  margin-bottom: 40px;
-  padding-bottom: 24px;
+  margin-top: 2rem;
+  margin-bottom: 3rem;
+  padding-bottom: 2rem;
   border-bottom: 1px solid var(--border-light);
 }
 
@@ -217,6 +261,7 @@ h1 {
   font-weight: 700;
   margin: 0 0 16px 0;
   line-height: 1.2;
+  font-family: var(--font-sans); /* arXiv uses sans across UI/headings */
 }
 
 h2 {
@@ -224,6 +269,7 @@ h2 {
   font-size: 20px;
   font-weight: 700;
   margin: 24px 0 12px;
+  font-family: var(--font-sans);
 }
 
 h3 {
@@ -231,6 +277,7 @@ h3 {
   font-size: 18px;
   font-weight: 600;
   margin: 16px 0 8px;
+  font-family: var(--font-sans);
 }
 
 h3 a {
@@ -243,31 +290,26 @@ h3 a:hover {
 }
 
 /* Links */
-a {
-  color: var(--arxiv-blue);
-}
-
-a:hover {
-  color: var(--link-hover);
-}
+a { color: var(--arxiv-blue); }
+a:hover { color: var(--arxiv-link-hover); }
 
 /* Paper list (index page) */
 .item-list {
   list-style: none;
   padding: 0;
-  margin: 32px 0;
+  margin: 2rem 0;
 }
 
 .paper-item {
-  padding: 24px 0;
+  padding: 1.5rem 0;
   border-bottom: 1px solid var(--border-light);
   transition: background-color 0.2s ease;
 }
 
 .paper-item:hover {
   background-color: rgba(0, 85, 170, 0.02);
-  margin: 0 -20px;
-  padding: 24px 20px;
+  margin: 0 -1rem;
+  padding: 1.5rem 1rem;
   border-radius: 6px;
 }
 
@@ -288,7 +330,7 @@ a:hover {
 }
 
 .paper-id {
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   color: var(--fg-muted);
   margin-left: 16px;
@@ -340,14 +382,46 @@ a:hover {
 }
 
 /* Descriptor labels (Title:, Authors:, etc.) */
-.descriptor {
-  font-weight: 700;
-  color: var(--fg);
-}
+.descriptor { font-weight: 700; color: var(--fg); }
 
 /* Paper detail page */
 .paper {
-  margin: 20px 0;
+  margin: 2rem 0;
+  padding: 0 1rem;
+}
+
+/* Two-column layout for paper pages */
+.paper-layout {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+.paper-main {
+  min-width: 0; /* Prevent grid overflow */
+}
+
+.paper-sidebar {
+  background: var(--bg-light);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 1.5rem;
+  height: fit-content;
+  position: sticky;
+  top: 2rem;
+}
+
+@media (max-width: 768px) {
+  .paper-layout {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .paper-sidebar {
+    position: static;
+    order: -1;
+  }
 }
 
 .paper h1 {
@@ -379,11 +453,78 @@ a:hover {
   font-weight: 600;
   border: none;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .btn:hover {
-  background: var(--link-hover);
+  background: var(--arxiv-link-hover);
   color: white;
+  text-decoration: none;
+}
+
+/* Sidebar action buttons */
+.sidebar-section {
+  margin-bottom: 2rem;
+}
+
+.sidebar-section:last-child {
+  margin-bottom: 0;
+}
+
+.sidebar-section h3 {
+  margin: 0 0 1rem 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--fg);
+  border-bottom: 1px solid var(--border-light);
+  padding-bottom: 0.5rem;
+}
+
+.sidebar-actions {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.sidebar-actions li {
+  margin-bottom: 0.5rem;
+}
+
+.sidebar-actions li:last-child {
+  margin-bottom: 0;
+}
+
+.sidebar-btn {
+  display: block;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: var(--bg);
+  color: var(--arxiv-blue);
+  text-decoration: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.sidebar-btn:hover {
+  background: var(--arxiv-blue);
+  color: white;
+  text-decoration: none;
+  border-color: var(--arxiv-blue);
+}
+
+.sidebar-btn.primary {
+  background: var(--arxiv-blue);
+  color: white;
+  border-color: var(--arxiv-blue);
+}
+
+.sidebar-btn.primary:hover {
+  background: var(--arxiv-link-hover);
+  border-color: var(--arxiv-link-hover);
 }
 
 /* Subject badges */
@@ -450,14 +591,32 @@ a:hover {
 }
 
 /* Abstract */
-.abstract {
+/* Abstract (arXiv-like) */
+.abstract { 
+  line-height: 1.55; 
+  font-size: 1.05em; 
+  margin: 0 0 1.5em 0; 
+  border: none; 
+  background: transparent; 
+  padding: 0; 
+}
+
+/* arXiv-style abstract blockquote */
+.abstract-blockquote {
   background: var(--bg-light);
-  border: 1px solid var(--border);
-  padding: 16px;
-  border-radius: 4px;
-  margin: 16px 0 24px;
-  font-size: 15px;
-  line-height: 1.7;
+  border-left: 4px solid var(--arxiv-blue);
+  padding: 1rem 1.5rem;
+  margin: 1.5rem 0;
+  border-radius: 0 6px 6px 0;
+  font-style: italic;
+  line-height: 1.6;
+}
+
+.abstract-blockquote .descriptor {
+  font-weight: 700;
+  color: var(--fg);
+  font-style: normal;
+  margin-right: 0.5rem;
 }
 
 /* Source link */
@@ -467,6 +626,29 @@ a:hover {
   border-top: 1px solid var(--border-light);
   font-size: 14px;
 }
+
+/* Header breadcrumbs (arXiv-like) */
+.header-breadcrumbs { color: #fff; margin-top: 8px; font-size: 14px; }
+.header-breadcrumbs a { color: #fff; text-decoration: none; }
+.header-breadcrumbs a:hover { color: #f0f0f0; text-decoration: underline; }
+.header-breadcrumbs .sep { opacity: 0.8; margin: 0 6px; }
+
+/* Listing (arXiv-like dl) */
+#articles { margin: 24px 0; padding: 0; }
+#articles dt { margin-top: .6em; }
+#articles dd { margin: 0 0 1.2em 0; }
+.list-title, .list-authors, .list-subjects { line-height: 150%; }
+.list-title { margin: .3em 0; }
+.list-authors { margin: .3em 0; }
+.list-subjects { margin: .3em 0; }
+.primary-subject { font-weight: 600; }
+
+/* Dateline and descriptors */
+.dateline { margin: .5em 0; font-style: italic; font-size: small; color: var(--fg); }
+.descriptor { margin-right: 6px; }
+
+/* Tighter dt styling */
+#articles dt a[name] { margin-right: 6px; }
 
 /* Search */
 .search-block {
@@ -579,7 +761,7 @@ pre {
   border-radius: 3px;
   border: 1px solid var(--border);
   padding: 2px 6px;
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-mono);
   font-size: 14px;
 }
 
@@ -593,6 +775,14 @@ pre {
   max-width: 1000px;
   margin: 0 auto;
 }
+
+/* Breadcrumb */
+.breadcrumb { font-size: 13px; color: var(--fg-muted); margin: 8px 0 16px; }
+.breadcrumb a { color: var(--arxiv-blue); text-decoration: none; }
+.breadcrumb a:hover { color: var(--arxiv-link-hover); text-decoration: underline; }
+
+/* Paper list numbering */
+.paper-number { font-family: var(--font-mono); color: var(--fg-muted); margin-right: 8px; }
 
 .donation-info {
   background: var(--bg-light);
@@ -812,7 +1002,12 @@ pre {
   }
 
   .container {
-    padding: 0 16px;
+    padding: 0 1rem;
+  }
+  
+  .page-header {
+    margin-top: 1rem;
+    margin-bottom: 2rem;
   }
 
   h1 {
@@ -827,32 +1022,31 @@ pre {
     font-size: 16px;
   }
 
-  .nav {
+  .header-main {
     flex-direction: column;
-    gap: 12px;
+    gap: 1rem;
+    align-items: stretch;
   }
 
-  .nav-section {
-    margin-right: 0;
-    margin-bottom: 12px;
+  .header-search {
+    max-width: none;
+    margin: 0;
+    order: 2;
   }
 
-  .nav-primary {
-    margin-right: 0;
-    margin-bottom: 16px;
+  .donate-btn {
+    order: 3;
+    text-align: center;
   }
 
-  .nav-primary-link {
-    font-size: 14px;
-    padding: 6px 12px;
+  .site-header .brand {
+    order: 1;
+    text-align: center;
   }
 
-  .nav-categories,
-  .nav-tools {
-    border-right: none;
-    padding-right: 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-    padding-bottom: 12px;
+  .header-breadcrumbs {
+    font-size: 12px;
+    padding: 0.25rem 0;
   }
 
   .search-block {
@@ -876,8 +1070,8 @@ pre {
   }
 
   .paper-item:hover {
-    margin: 0 -16px;
-    padding: 24px 16px;
+    margin: 0 -1rem;
+    padding: 1.5rem 1rem;
   }
 
   .crypto-grid {

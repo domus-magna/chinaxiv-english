@@ -54,14 +54,15 @@ def detect_env_mismatches(
 
 
 def resolve_env_mismatches(
-    keys: List[str], prefer_file: bool = True, env_file: str = ".env"
+    keys: List[str], prefer_file: bool = False, env_file: str = ".env"
 ) -> Dict[str, str]:
     """
     Resolve environment variable mismatches by choosing a source.
 
     Args:
         keys: List of environment variable keys to resolve
-        prefer_file: If True, prefer .env file values over shell values
+        prefer_file: If True, prefer .env file values over shell values.
+            Default is False so that explicit environment variables always win.
         env_file: Path to .env file
 
     Returns:
@@ -74,22 +75,34 @@ def resolve_env_mismatches(
         if key in mismatches:
             mismatch = mismatches[key]
 
-            if prefer_file and mismatch["file_set"]:
-                # Prefer .env file value
-                resolved[key] = mismatch["file"]
-                # Update shell environment to match
-                os.environ[key] = mismatch["file"]
-                shell_preview = (
-                    mismatch["shell"][:20] + "..." if mismatch.get("shell") else "None"
-                )
-                log(f"Resolved {key} mismatch: using .env value (was: shell={shell_preview})")
-            elif mismatch["shell_set"]:
-                # Prefer shell value
+            # Always prefer an explicitly-set shell value
+            if mismatch["shell_set"] and not prefer_file:
                 resolved[key] = mismatch["shell"]
                 file_preview = (
                     mismatch["file"][:20] + "..." if mismatch.get("file") else "None"
                 )
-                log(f"Resolved {key} mismatch: using shell value (was: file={file_preview})")
+                log(
+                    f"Resolved {key} mismatch: using shell value (ignoring .env file={file_preview})"
+                )
+            elif prefer_file and mismatch["file_set"]:
+                # Prefer .env file value (opt-in)
+                resolved[key] = mismatch["file"]
+                # Update shell environment to match only when preferring file
+                os.environ[key] = mismatch["file"]
+                shell_preview = (
+                    mismatch["shell"][:20] + "..." if mismatch.get("shell") else "None"
+                )
+                log(
+                    f"Resolved {key} mismatch: using .env value (was: shell={shell_preview})"
+                )
+            elif mismatch["shell_set"]:
+                # Shell set (no mismatch scenario)
+                resolved[key] = mismatch["shell"]
+            elif mismatch["file_set"]:
+                # Shell empty, use .env file and export to environment
+                resolved[key] = mismatch["file"]
+                os.environ[key] = mismatch["file"]
+                log(f"Resolved {key}: loaded from .env into shell (shell was empty)")
             else:
                 # Neither set
                 resolved[key] = None
@@ -101,14 +114,16 @@ def resolve_env_mismatches(
     return resolved
 
 
-def ensure_env_consistency(keys: List[str], env_file: str = ".env") -> None:
+def ensure_env_consistency(
+    keys: List[str], env_file: str = ".env", *, prefer_file: bool = False
+) -> None:
     """
     Ensure environment variables are consistent between shell and .env file.
 
     This function:
     1. Detects mismatches
-    2. Resolves them by preferring .env file values
-    3. Updates shell environment to match .env file
+    2. Resolves them by preferring explicit environment variables by default
+    3. Only loads values from .env when the shell is missing a value
     4. Logs the resolution process
 
     Args:
@@ -128,8 +143,8 @@ def ensure_env_consistency(keys: List[str], env_file: str = ".env") -> None:
             f"file={mismatch['file'][:20] if mismatch['file'] else 'None'}..."
         )
 
-    # Resolve by preferring .env file values
-    resolved = resolve_env_mismatches(keys, prefer_file=True, env_file=env_file)
+    # Resolve by preferring selected source (shell by default)
+    resolved = resolve_env_mismatches(keys, prefer_file=prefer_file, env_file=env_file)
 
     log(f"Resolved {len(mismatches)} environment variable mismatches")
 
@@ -148,11 +163,11 @@ def get_api_key(key_name: str, env_file: str = ".env") -> str:
     Raises:
         RuntimeError: If API key not found after resolution
     """
-    # Ensure consistency
-    ensure_env_consistency([key_name], env_file)
+    # Always prefer explicit environment variables (e.g., GitHub Secrets)
+    ensure_env_consistency([key_name], env_file, prefer_file=False)
 
-    # Load .env to get the resolved value
-    load_dotenv(env_file, override=True)
+    # Load .env without overriding existing env; in CI this preserves secrets
+    load_dotenv(env_file, override=False)
 
     key_value = os.environ.get(key_name)
     if not key_value:
