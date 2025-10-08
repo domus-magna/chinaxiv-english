@@ -91,8 +91,8 @@ class BackgroundWorker:
 
     def run(self) -> None:
         """Main worker loop."""
-        # Load environment variables from .env (override existing)
-        load_dotenv(override=True)
+        # Load environment variables from .env without overriding explicit env
+        load_dotenv(override=False)
 
         # Setup
         self.write_pid_file()
