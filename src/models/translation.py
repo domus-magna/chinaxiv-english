@@ -20,7 +20,9 @@ class Translation:
     abstract_en: Optional[str] = None
     body_en: Optional[List[str]] = None
     creators: Optional[List[str]] = None
+    creators_en: Optional[List[str]] = None
     subjects: Optional[List[str]] = None
+    subjects_en: Optional[List[str]] = None
     date: Optional[str] = None
     license: Optional[Dict[str, Any]] = None
     source_url: Optional[str] = None
@@ -36,7 +38,9 @@ class Translation:
             abstract_en=data.get("abstract_en"),
             body_en=data.get("body_en"),
             creators=data.get("creators"),
+            creators_en=data.get("creators_en"),
             subjects=data.get("subjects"),
+            subjects_en=data.get("subjects_en"),
             date=data.get("date"),
             license=data.get("license"),
             source_url=data.get("source_url"),
@@ -55,7 +59,9 @@ class Translation:
             result["abstract_en"] = self.abstract_en
         result["body_en"] = self.body_en
         result["creators"] = self.creators
+        result["creators_en"] = self.creators_en
         result["subjects"] = self.subjects
+        result["subjects_en"] = self.subjects_en
         result["date"] = self.date
         result["license"] = self.license
         result["source_url"] = self.source_url
@@ -96,13 +102,19 @@ class Translation:
         return "\n\n".join(self.body_en)
 
     def get_authors_string(self) -> str:
-        """Get authors as a comma-separated string."""
+        """Get authors as a comma-separated string (prefers English)."""
+        # Prefer English translation if available
+        if self.creators_en:
+            return ", ".join(self.creators_en)
         if not self.creators:
             return ""
         return ", ".join(self.creators)
 
     def get_subjects_string(self) -> str:
-        """Get subjects as a comma-separated string."""
+        """Get subjects as a comma-separated string (prefers English)."""
+        # Prefer English translation if available
+        if self.subjects_en:
+            return ", ".join(self.subjects_en)
         if not self.subjects:
             return ""
         return ", ".join(self.subjects)

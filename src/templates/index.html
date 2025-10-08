@@ -53,9 +53,9 @@
       </dt>
       <dd>
         <div class='list-title mathjax'><span class='descriptor'>Title:</span> {{ it.title_en }}</div>
-        <div class='list-authors'><span class='descriptor'>Authors:</span> {{ ', '.join(it.creators or ['Unknown']) }}</div>
-        {% if it.subjects %}
-        <div class='list-subjects'><span class='descriptor'>Subjects:</span> <span class="primary-subject">{{ it.subjects[0] }}</span>{% for s in it.subjects[1:2] %}; {{ s }}{% endfor %}</div>
+        <div class='list-authors'><span class='descriptor'>Authors:</span> {{ ', '.join(it.creators_en or it.creators or ['Unknown']) }}</div>
+        {% if it.subjects or it.subjects_en %}
+        <div class='list-subjects'><span class='descriptor'>Subjects:</span> <span class="primary-subject">{{ (it.subjects_en or it.subjects)[0] }}</span>{% for s in (it.subjects_en or it.subjects)[1:2] %}; {{ s }}{% endfor %}</div>
         {% endif %}
         {% if it.date %}
         <div class='dateline'>Submitted: {{ it.date }}</div>
