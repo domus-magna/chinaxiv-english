@@ -366,6 +366,34 @@ class TranslationService:
             abstract_src, dry_run=dry_run, glossary_override=glossary_override
         )
 
+        # Translate authors (creators)
+        if paper.creators:
+            translation.creators_en = []
+            for creator in paper.creators:
+                if creator:  # Skip empty strings
+                    try:
+                        translated_name = self.translate_field(
+                            creator, dry_run=dry_run, glossary_override=glossary_override
+                        )
+                        translation.creators_en.append(translated_name)
+                    except Exception as e:
+                        # Fallback to original if translation fails
+                        translation.creators_en.append(creator)
+
+        # Translate subjects
+        if paper.subjects:
+            translation.subjects_en = []
+            for subject in paper.subjects:
+                if subject:  # Skip empty strings
+                    try:
+                        translated_subject = self.translate_field(
+                            subject, dry_run=dry_run, glossary_override=glossary_override
+                        )
+                        translation.subjects_en.append(translated_subject)
+                    except Exception as e:
+                        # Fallback to original if translation fails
+                        translation.subjects_en.append(subject)
+
         # Translate body if allowed
         if allow_full:
             paras = extract_body_paragraphs(record)

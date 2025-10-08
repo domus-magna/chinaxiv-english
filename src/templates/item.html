@@ -13,13 +13,13 @@
         </div>
 
         <div style="margin-bottom: 16px;">
-          <span class="descriptor">Authors:</span> {{ ', '.join(item.creators or ['Unknown']) }}
+          <span class="descriptor">Authors:</span> {{ ', '.join(item.creators_en or item.creators or ['Unknown']) }}
         </div>
 
         <div class="meta">
           <span>Submitted: {{ item.date }}</span>
-          {% if item.subjects %}
-          <span> | Subjects: {{ ', '.join(item.subjects or []) }}</span>
+          {% if item.subjects or item.subjects_en %}
+          <span> | Subjects: {{ ', '.join(item.subjects_en or item.subjects or []) }}</span>
           {% endif %}
           {% if item.license and item.license.badge %}
           <span class="badge">{{ item.license.badge }}</span>
@@ -84,7 +84,7 @@
           <h3>Related</h3>
           <ul class="sidebar-actions">
             <li><a href="{{ root }}/" class="sidebar-btn">Browse More Papers</a></li>
-            <li><a href="{{ root }}/?category={{ item.subjects[0].lower() if item.subjects else 'all' }}" class="sidebar-btn">Similar Papers</a></li>
+            <li><a href="{{ root }}/?category={{ (item.subjects_en or item.subjects)[0].lower() if (item.subjects_en or item.subjects) else 'all' }}" class="sidebar-btn">Similar Papers</a></li>
           </ul>
         </div>
       </div>
@@ -93,7 +93,7 @@
 
   <script>
     function copyCitation() {
-      const citation = `{{ item.creators[0] if item.creators else 'Unknown' }} ({{ item.date[:4] if item.date else 'N/A' }}). {{ item.title_en }}. ChinaXiv: {{ item.id }}.`;
+      const citation = `{{ (item.creators_en or item.creators)[0] if (item.creators_en or item.creators) else 'Unknown' }} ({{ item.date[:4] if item.date else 'N/A' }}). {{ item.title_en }}. ChinaXiv: {{ item.id }}.`;
       navigator.clipboard.writeText(citation).then(() => {
         alert('Citation copied to clipboard!');
       });
@@ -101,7 +101,7 @@
 
     function exportBibTeX() {
       const title = {{ item.title_en|tojson }};
-      const authors = {{ ', '.join(item.creators or ['Unknown'])|tojson }};
+      const authors = {{ ', '.join(item.creators_en or item.creators or ['Unknown'])|tojson }};
       const year = {{ item.date[:4] if item.date else 'N/A'|tojson }};
       const url = {{ item.source_url|tojson }};
       const id = {{ item.id.replace('-', '')|tojson }};
