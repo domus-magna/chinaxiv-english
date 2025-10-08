@@ -1,4 +1,9 @@
 {% extends "base.html" %}
+{% block header_breadcrumbs %}
+  <div class="header-breadcrumbs">
+    <a href="{{ root }}/">Home</a> <span class="sep">&gt;</span> Recent
+  </div>
+{% endblock %}
 {% block content %}
   <div class="page-header">
     <h1>Recent Translations from ChinaXiv</h1>
@@ -39,30 +44,26 @@
     <div id="search-results"></div>
   </div>
 
-  <ul class="item-list" id="items">
+  <dl id="articles">
     {% for it in items %}
-      <li class="paper-item">
-        <div class="paper-header">
-          <h3><a href="{{ root }}/items/{{ it.id }}/">{{ it.title_en }}</a></h3>
-          <div class="paper-id">ChinaXiv {{ it.id.split('-')[-1] if '-' in it.id else it.id }}</div>
-        </div>
-        <div class="paper-meta">
-          <div class="authors">{{ ', '.join(it.creators or ['Unknown']) }}</div>
-          <div class="subjects">
-            {% if it.subjects %}
-              {% for subject in it.subjects[:2] %}
-                <span class="subject-badge">{{ subject }}</span>
-              {% endfor %}
-            {% endif %}
-          </div>
-          <div class="date">{{ it.date }}</div>
-        </div>
-        <div class="paper-abstract">
-          {{ it.abstract_en[:300] }}{% if it.abstract_en|length > 300 %}…{% endif %}
-        </div>
-      </li>
+      <dt>
+        <a name='item{{ loop.index }}'>[{{ loop.index }}]</a>
+        <a href="{{ root }}/items/{{ it.id }}/" title="Abstract" id="{{ it.id }}">ChinaXiv: {{ it.id }}</a>
+        [<a href="{{ root }}/items/{{ it.id }}/" title="HTML">html</a>{% if it.pdf_url %}, <a href="{{ it.pdf_url }}" title="Download PDF">pdf</a>{% endif %}]
+      </dt>
+      <dd>
+        <div class='list-title mathjax'><span class='descriptor'>Title:</span> {{ it.title_en }}</div>
+        <div class='list-authors'><span class='descriptor'>Authors:</span> {{ ', '.join(it.creators or ['Unknown']) }}</div>
+        {% if it.subjects %}
+        <div class='list-subjects'><span class='descriptor'>Subjects:</span> <span class="primary-subject">{{ it.subjects[0] }}</span>{% for s in it.subjects[1:2] %}; {{ s }}{% endfor %}</div>
+        {% endif %}
+        {% if it.date %}
+        <div class='dateline'>Submitted: {{ it.date }}</div>
+        {% endif %}
+        <p class='mathjax'>{{ it.abstract_en[:500] }}{% if it.abstract_en and it.abstract_en|length > 500 %}…{% endif %}</p>
+      </dd>
     {% endfor %}
-  </ul>
+  </dl>
 
   {% if not items %}
     <p style="color: #777; font-style: italic; margin-top: 40px;">No translations available yet.</p>
