@@ -28,6 +28,37 @@ def build_index(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
 
 def run_cli() -> None:
+    # Check for bypass file first, but only use if explicitly enabled
+    bypass_file = os.path.join("data", "translated_bypass.json")
+    use_bypass = os.environ.get("USE_TRANSLATED_BYPASS", "0").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+    if os.path.exists(bypass_file):
+        if use_bypass:
+            log("Using bypassed translations for search index (USE_TRANSLATED_BYPASS=1)")
+            items = read_json(bypass_file)
+            idx = build_index(items)
+            out_path = os.path.join("site", "search-index.json")
+            os.makedirs(os.path.dirname(out_path), exist_ok=True)
+            with open(out_path, "w", encoding="utf-8") as f:
+                json.dump(idx, f, ensure_ascii=False, indent=2)
+            log(f"Wrote search index with {len(idx)} entries → {out_path}")
+            
+            # Compress index
+            with open(out_path, "rb") as f_in:
+                with _gzip.open(out_path + ".gz", "wb") as f_out:
+                    f_out.write(f_in.read())
+            log(
+                f"Compressed index: {os.path.getsize(out_path + '.gz')} bytes → {out_path}.gz"
+            )
+            return
+        else:
+            log(
+                "Bypass file present but ignored for search index; set USE_TRANSLATED_BYPASS=1 to enable"
+            )
+
     translated_paths = sorted(glob.glob(os.path.join("data", "translated", "*.json")))
     out_path = os.path.join("site", "search-index.json")
 

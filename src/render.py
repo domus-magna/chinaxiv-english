@@ -7,6 +7,7 @@ import shutil
 from typing import Any, Dict, List
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
+import time
 
 from .utils import ensure_dir, log, read_json, write_text
 
@@ -14,6 +15,22 @@ from .utils import ensure_dir, log, read_json, write_text
 def load_translated() -> List[Dict[str, Any]]:
     items: List[Dict[str, Any]] = []
     flagged_count = 0
+
+    # Check for bypass file first, but only use if explicitly enabled
+    bypass_file = os.path.join("data", "translated_bypass.json")
+    use_bypass = os.environ.get("USE_TRANSLATED_BYPASS", "0").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+    if os.path.exists(bypass_file):
+        if use_bypass:
+            log("Using bypassed translations (USE_TRANSLATED_BYPASS=1)")
+            return read_json(bypass_file)
+        else:
+            log(
+                "Bypass file present but ignored; set USE_TRANSLATED_BYPASS=1 to enable"
+            )
 
     for path in sorted(glob.glob(os.path.join("data", "translated", "*.json"))):
         item = read_json(path)
@@ -69,15 +86,22 @@ def render_site(items: List[Dict[str, Any]]) -> None:
     if os.path.exists(assets_src):
         shutil.copytree(assets_src, assets_dst)
 
+    build_version = int(time.time())
+
     # Index page
     tmpl_index = env.get_template("index.html")
-    html_index = tmpl_index.render(items=items, root=".")
+    html_index = tmpl_index.render(items=items, root=".", build_version=build_version)
     write_text(os.path.join(base_out, "index.html"), html_index)
 
     # Monitor page
     tmpl_monitor = env.get_template("monitor.html")
-    html_monitor = tmpl_monitor.render(root=".")
+    html_monitor = tmpl_monitor.render(root=".", build_version=build_version)
     write_text(os.path.join(base_out, "monitor.html"), html_monitor)
+
+    # Donations page
+    tmpl_donations = env.get_template("donations.html")
+    html_donations = tmpl_donations.render(root=".", build_version=build_version)
+    write_text(os.path.join(base_out, "donation.html"), html_donations)
 
     # Item pages
     tmpl_item = env.get_template("item.html")
@@ -91,7 +115,7 @@ def render_site(items: List[Dict[str, Any]]) -> None:
         elif it.get("body_en"):
             it["formatted_body_md"] = format_translation_to_markdown(it)
 
-        html = tmpl_item.render(item=it, root="../..")
+        html = tmpl_item.render(item=it, root="../..", build_version=build_version)
         write_text(os.path.join(out_dir, "index.html"), html)
         # Markdown export (prefer formatted body/abstract if present)
         abstract_md = it.get("abstract_md") or (it.get("abstract_en") or "")

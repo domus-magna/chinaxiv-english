@@ -5,39 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{{ title or 'ChinaXiv Translations' }}</title>
     <meta name="description" content="Machine-translated preprints from ChinaXiv (Chinese arXiv)" />
-    <link rel="stylesheet" href="{{ root }}/assets/style.css" />
+    <link rel="stylesheet" href="{{ root }}/assets/style.css?v={{ build_version }}" />
     <script>
       window.MathJax = { tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] } };
     </script>
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" defer></script>
-    <script src="{{ root }}/assets/pako.min.js"></script>
+    <script src="{{ root }}/assets/pako.min.js?v={{ build_version }}"></script>
   </head>
   <body>
     <header class="site-header">
       <div class="container">
-        <a href="{{ root }}/" class="brand">ChinaXiv Translations</a>
-        <nav class="nav">
-          <div class="nav-section nav-primary">
-            <a href="{{ root }}/" class="nav-primary-link">Recent</a>
+        <div class="header-main">
+          <a href="{{ root }}/" class="brand">ChinaXiv Translations</a>
+          <div class="header-search">
+            <input type="text" id="header-search-input" placeholder="Search papers..." />
+            <button id="header-search-btn">Search</button>
           </div>
-          <div class="nav-section nav-categories">
-            <span class="nav-label">Browse:</span>
-            <a href="{{ root }}/?category=cs">Computer Science</a>
-            <a href="{{ root }}/?category=math">Mathematics</a>
-            <a href="{{ root }}/?category=physics">Physics</a>
-          </div>
-          <div class="nav-section nav-tools">
-            <span class="nav-label">Tools:</span>
-            <a href="{{ root }}/search">Search</a>
-            <a href="{{ root }}/browse">Browse All</a>
-            <a href="{{ root }}/stats">Statistics</a>
-          </div>
-          <div class="nav-section nav-external">
-            <span class="nav-label">Links:</span>
-            <a href="https://www.chinaxiv.org" target="_blank" rel="noopener">Original Site</a>
-            <a href="https://github.com/" target="_blank" rel="noopener">About</a>
-          </div>
-        </nav>
+          <a href="{{ root }}/donation.html" class="donate-btn">Donate</a>
+        </div>
+        {% block header_breadcrumbs %}{% endblock %}
       </div>
     </header>
     <main class="container">
@@ -47,12 +33,23 @@
       <div class="container">
         <div class="footer-content">
           <div class="footer-section">
-            <h4>Navigation</h4>
+            <h4>Browse</h4>
             <div class="footer-links">
-              <a href="./help">Help</a>
-              <a href="./api">API</a>
-              <a href="./stats">Statistics</a>
-              <a href="./contact">Contact</a>
+              <a href="{{ root }}/">Recent Papers</a>
+              <a href="{{ root }}/?category=cs">Computer Science</a>
+              <a href="{{ root }}/?category=math">Mathematics</a>
+              <a href="{{ root }}/?category=physics">Physics</a>
+              <a href="{{ root }}/?category=biology">Biology</a>
+              <a href="{{ root }}/?category=chemistry">Chemistry</a>
+            </div>
+          </div>
+          <div class="footer-section">
+            <h4>Tools</h4>
+            <div class="footer-links">
+              <a href="{{ root }}/search">Advanced Search</a>
+              <a href="{{ root }}/browse">Browse All</a>
+              <a href="{{ root }}/stats">Statistics</a>
+              <a href="{{ root }}/api">API</a>
             </div>
           </div>
           <div class="footer-section">
@@ -67,12 +64,14 @@
             <p class="footer-meta">
               Last updated: 2025-10-05<br>
               <a href="https://github.com/seconds-0/chinaxiv-english" target="_blank" rel="noopener">Source Code</a><br>
-              <a href="{{ root }}/donation.html">Support Us</a>
+              <a href="{{ root }}/donation.html">Support Us</a><br>
+              <a href="{{ root }}/help">Help</a><br>
+              <a href="{{ root }}/contact">Contact</a>
             </p>
           </div>
         </div>
       </div>
     </footer>
-    <script src="{{ root }}/assets/site.js"></script>
+    <script src="{{ root }}/assets/site.js?v={{ build_version }}"></script>
   </body>
   </html>

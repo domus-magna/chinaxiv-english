@@ -1,51 +1,154 @@
 {% extends "base.html" %}
+{% block header_breadcrumbs %}
+  <div class="header-breadcrumbs">
+    <a href="{{ root }}/">Home</a> <span class="sep">&gt;</span> ChinaXiv {{ item.id }}
+  </div>
+{% endblock %}
 {% block content %}
   <article class="paper">
-    <div class="banner">⚠ Machine translation. Verify with original.</div>
+    <div class="paper-layout">
+      <div class="paper-main">
+        <div style="margin-bottom: 16px;">
+          <span class="descriptor">Title:</span> {{ item.title_en }}
+        </div>
 
-    <div style="margin-bottom: 16px;">
-      <span class="descriptor">Title:</span> {{ item.title_en }}
-    </div>
+        <div style="margin-bottom: 16px;">
+          <span class="descriptor">Authors:</span> {{ ', '.join(item.creators or ['Unknown']) }}
+        </div>
 
-    <div style="margin-bottom: 16px;">
-      <span class="descriptor">Authors:</span> {{ ', '.join(item.creators or ['Unknown']) }}
-    </div>
+        <div class="meta">
+          <span>Submitted: {{ item.date }}</span>
+          {% if item.subjects %}
+          <span> | Subjects: {{ ', '.join(item.subjects or []) }}</span>
+          {% endif %}
+          {% if item.license and item.license.badge %}
+          <span class="badge">{{ item.license.badge }}</span>
+          {% endif %}
+        </div>
 
-    <div class="actions">
-      {% if item.pdf_url %}<a href="{{ item.pdf_url }}" class="btn" target="_blank" rel="noopener">Download PDF</a>{% endif %}
-      <a href="{{ '/items/' ~ item.id ~ '/' ~ item.id ~ '.md' }}" class="btn">View Markdown</a>
-      {% if item.body_en %}<a href="{{ '/items/' ~ item.id ~ '/' ~ item.id ~ '.pdf' }}" class="btn">Full Text PDF</a>{% endif %}
-    </div>
+        <h2>Abstract</h2>
+        <div class="abstract-blockquote">
+          <span class="descriptor">Abstract:</span>{{ (item.abstract_md or item.abstract_en) | markdown | safe }}
+        </div>
 
-    <div class="meta">
-      <span>Submitted: {{ item.date }}</span>
-      {% if item.subjects %}
-      <span> | Subjects: {{ ', '.join(item.subjects or []) }}</span>
-      {% endif %}
-      {% if item.license and item.license.badge %}
-      <span class="badge">{{ item.license.badge }}</span>
-      {% endif %}
-    </div>
+        {% if item.formatted_body_md %}
+          <h2>Full Text</h2>
+          <div class="full-text-preview">
+            {{ item.formatted_body_md | markdown | safe }}
+          </div>
+        {% elif item.body_en %}
+          <h2>Full Text</h2>
+          <div class="full-text-preview">
+            {% for p in item.body_en %}
+              <p>{{ p }}</p>
+            {% endfor %}
+          </div>
+        {% endif %}
 
-    <h2>Abstract</h2>
-    <div class="abstract">{{ (item.abstract_md or item.abstract_en) | markdown | safe }}</div>
-
-    {% if item.formatted_body_md %}
-      <h2>Full Text</h2>
-      <div class="full-text-preview">
-        {{ item.formatted_body_md | markdown | safe }}
+        <div class="source">
+          <a href="{{ item.source_url }}" target="_blank" rel="noopener">View original on ChinaXiv</a>
+        </div>
       </div>
-    {% elif item.body_en %}
-      <h2>Full Text</h2>
-      <div class="full-text-preview">
-        {% for p in item.body_en %}
-          <p>{{ p }}</p>
-        {% endfor %}
-      </div>
-    {% endif %}
 
-    <div class="source">
-      <a href="{{ item.source_url }}" target="_blank" rel="noopener">View original on ChinaXiv</a>
+      <div class="paper-sidebar">
+        <div class="sidebar-section">
+          <h3>Access Paper</h3>
+          <ul class="sidebar-actions">
+            {% if item.pdf_url %}
+            <li><a href="{{ item.pdf_url }}" class="sidebar-btn primary" target="_blank" rel="noopener">Download PDF</a></li>
+            {% endif %}
+            <li><a href="{{ '/items/' ~ item.id ~ '/' ~ item.id ~ '.md' }}" class="sidebar-btn">View Markdown</a></li>
+            {% if item.body_en %}
+            <li><a href="{{ '/items/' ~ item.id ~ '/' ~ item.id ~ '.pdf' }}" class="sidebar-btn">Full Text PDF</a></li>
+            {% endif %}
+          </ul>
+        </div>
+
+        <div class="sidebar-section">
+          <h3>Citation</h3>
+          <ul class="sidebar-actions">
+            <li><a href="#" class="sidebar-btn" onclick="copyCitation()">Copy Citation</a></li>
+            <li><a href="#" class="sidebar-btn" onclick="exportBibTeX()">Export BibTeX</a></li>
+          </ul>
+        </div>
+
+        <div class="sidebar-section">
+          <h3>Share</h3>
+          <ul class="sidebar-actions">
+            <li><a href="#" class="sidebar-btn" onclick="sharePaper()">Share Paper</a></li>
+            <li><a href="#" class="sidebar-btn" onclick="bookmarkPaper()">Bookmark</a></li>
+          </ul>
+        </div>
+
+        <div class="sidebar-section">
+          <h3>Related</h3>
+          <ul class="sidebar-actions">
+            <li><a href="{{ root }}/" class="sidebar-btn">Browse More Papers</a></li>
+            <li><a href="{{ root }}/?category={{ item.subjects[0].lower() if item.subjects else 'all' }}" class="sidebar-btn">Similar Papers</a></li>
+          </ul>
+        </div>
+      </div>
     </div>
   </article>
+
+  <script>
+    function copyCitation() {
+      const citation = `{{ item.creators[0] if item.creators else 'Unknown' }} ({{ item.date[:4] if item.date else 'N/A' }}). {{ item.title_en }}. ChinaXiv: {{ item.id }}.`;
+      navigator.clipboard.writeText(citation).then(() => {
+        alert('Citation copied to clipboard!');
+      });
+    }
+
+    function exportBibTeX() {
+      const title = {{ item.title_en|tojson }};
+      const authors = {{ ', '.join(item.creators or ['Unknown'])|tojson }};
+      const year = {{ item.date[:4] if item.date else 'N/A'|tojson }};
+      const url = {{ item.source_url|tojson }};
+      const id = {{ item.id.replace('-', '')|tojson }};
+      
+      const bibtex = `@article{chinaxiv${id},
+  title={${title}},
+  author={${authors}},
+  journal={ChinaXiv},
+  year={${year}},
+  url={${url}}
+}`;
+      navigator.clipboard.writeText(bibtex).then(() => {
+        alert('BibTeX citation copied to clipboard!');
+      });
+    }
+
+    function sharePaper() {
+      if (navigator.share) {
+        navigator.share({
+          title: {{ item.title_en|tojson }},
+          text: 'Check out this paper from ChinaXiv Translations',
+          url: window.location.href
+        });
+      } else {
+        navigator.clipboard.writeText(window.location.href).then(() => {
+          alert('Paper URL copied to clipboard!');
+        });
+      }
+    }
+
+    function bookmarkPaper() {
+      // Simple bookmark functionality
+      const bookmarks = JSON.parse(localStorage.getItem('chinaxiv_bookmarks') || '[]');
+      const bookmark = {
+        id: {{ item.id|tojson }},
+        title: {{ item.title_en|tojson }},
+        url: window.location.href,
+        date: new Date().toISOString()
+      };
+      
+      if (!bookmarks.find(b => b.id === bookmark.id)) {
+        bookmarks.push(bookmark);
+        localStorage.setItem('chinaxiv_bookmarks', JSON.stringify(bookmarks));
+        alert('Paper bookmarked!');
+      } else {
+        alert('Paper already bookmarked!');
+      }
+    }
+  </script>
 {% endblock %}
