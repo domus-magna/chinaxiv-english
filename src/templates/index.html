@@ -47,16 +47,16 @@
   <dl id="articles">
     {% for it in items %}
       <dt>
-        <a name='item{{ loop.index }}'>[{{ loop.index }}]</a>
-        <a href="{{ root }}/items/{{ it.id }}/" title="Abstract" id="{{ it.id }}">ChinaXiv: {{ it.id }}</a>
+        <span class='descriptor'>Title:</span>
+        <a href="{{ root }}/items/{{ it.id }}/" title="Abstract" id="{{ it.id }}" class="mathjax list-title-link">{{ it.title_en or it.title }}</a>
         [<a href="{{ root }}/items/{{ it.id }}/" title="HTML">html</a>{% if it.pdf_url %}, <a href="{{ it.pdf_url }}" title="Download PDF">pdf</a>{% endif %}]
       </dt>
       <dd>
-        <div class='list-title mathjax'><span class='descriptor'>Title:</span> {{ it.title_en }}</div>
         <div class='list-authors'><span class='descriptor'>Authors:</span> {{ ', '.join(it.creators_en or it.creators or ['Unknown']) }}</div>
         {% if it.subjects or it.subjects_en %}
         <div class='list-subjects'><span class='descriptor'>Subjects:</span> <span class="primary-subject">{{ (it.subjects_en or it.subjects)[0] }}</span>{% for s in (it.subjects_en or it.subjects)[1:2] %}; {{ s }}{% endfor %}</div>
         {% endif %}
+        <div class='list-id'><span class='descriptor'>ChinaXiv Id:</span> <a href="{{ it.source_url or ('https://chinaxiv.org/abs/' ~ (it.id | replace('chinaxiv-',''))) }}" target="_blank" rel="noopener">{{ it.id }}</a></div>
         {% if it.date %}
         <div class='dateline'>Submitted: {{ it.date }}</div>
         {% endif %}

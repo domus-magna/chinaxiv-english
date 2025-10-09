@@ -300,6 +300,13 @@ a:hover { color: var(--arxiv-link-hover); }
   margin: 2rem 0;
 }
 
+/* Slightly larger title link on index list */
+.list-title-link {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
 .paper-item {
   padding: 1.5rem 0;
   border-bottom: 1px solid var(--border-light);
