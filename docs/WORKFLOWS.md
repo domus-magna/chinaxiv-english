@@ -22,9 +22,13 @@ This document describes the GitHub Actions workflows used for building, testing,
 1. Checkout code
 2. Setup Python 3.11
 3. Install dependencies
-4. Run tests
+4. Run tests (blocking on nightly schedule; non-blocking on push/manual)
 5. Build site (select, translate all, render)
 6. Deploy to Cloudflare Pages
+
+### Continuous Deployment
+- Pushes to `main` automatically run the build-and-deploy workflow and publish the `site/` directory to Cloudflare Pages.
+- Internal `[skip ci]` pushes (from dedupe state persists) are isolated by concurrency so they do not cancel an in-flight deployment.
 
 ### Backfill Workflow (Targeted by Month)
 - **File**: `.github/workflows/backfill.yml`
