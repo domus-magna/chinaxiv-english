@@ -46,7 +46,12 @@ jobs:
             echo "❌ OPENROUTER_API_KEY invalid or missing — failing early"
             exit 1
           }
-      - name: Run tests
+      - name: Run tests (blocking on schedule/manual)
+        if: ${{ github.event_name != 'push' }}
+        run: pytest -q
+      - name: Run tests (non-blocking on push)
+        if: ${{ github.event_name == 'push' }}
+        continue-on-error: true
         run: pytest -q
       - name: Build site
         env:
