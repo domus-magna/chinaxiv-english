@@ -10,7 +10,9 @@ on:
       - main
 
 concurrency:
-  group: build-and-deploy-${{ github.ref }}
+  # Separate concurrency groups for push runs that are internal [skip ci] updates
+  # so those do not cancel an in-flight build-and-deploy run.
+  group: build-and-deploy-${{ github.ref }}-${{ (github.event_name == 'push' && contains(github.event.head_commit.message || '', '[skip ci]')) && 'skip' || 'run' }}
   cancel-in-progress: true
 
 jobs:
@@ -107,23 +109,6 @@ jobs:
           }
           
           echo "✅ Build completed successfully!"
-      - name: Persist dedupe state (seen.json)
-        run: |
-          set -e
-          if [ ! -f data/seen.json ]; then
-            echo "No seen.json to persist; skipping"
-            exit 0
-          fi
-          echo "🔒 Persisting data/seen.json..."
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/seen.json || true
-          if git diff --cached --quiet; then
-            echo "No changes in seen.json"
-          else
-            git commit -m "chore(dedupe): update seen.json [skip ci]" || true
-            git push || echo "⚠️ Push failed (non-fatal)"
-          fi
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -148,3 +133,20 @@ jobs:
           }
           
           echo "✅ Deployment completed successfully!"
+      - name: Persist dedupe state (seen.json)
+        run: |
+          set -e
+          if [ ! -f data/seen.json ]; then
+            echo "No seen.json to persist; skipping"
+            exit 0
+          fi
+          echo "🔒 Persisting data/seen.json..."
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/seen.json || true
+          if git diff --cached --quiet; then
+            echo "No changes in seen.json"
+          else
+            git commit -m "chore(dedupe): update seen.json [skip ci]" || true
+            git push || echo "⚠️ Push failed (non-fatal)"
+          fi
