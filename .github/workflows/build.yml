@@ -5,9 +5,18 @@ on:
     - cron: '0 3 * * *'
   workflow_dispatch:
     {}
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: build-and-deploy-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
+    # Avoid infinite loops when the workflow commits seen.json with [skip ci]
+    if: ${{ github.event_name != 'push' || !contains(github.event.head_commit.message, '[skip ci]') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
