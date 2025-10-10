@@ -1,0 +1,197 @@
+name: QA Report Generator
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: '0 12 * * *'  # Daily at 12:00 UTC
+
+jobs:
+  generate-report:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Generate QA statistics
+        id: qa_stats
+        run: |
+          set -e
+
+          echo "📊 Generating QA statistics..."
+
+          # Count passed and flagged translations
+          PASSED=$(ls data/translated/*.json 2>/dev/null | wc -l | tr -d ' ')
+          FLAGGED=$(ls data/flagged/*.json 2>/dev/null | wc -l | tr -d ' ')
+          TOTAL=$((PASSED + FLAGGED))
+
+          echo "passed=$PASSED" >> $GITHUB_OUTPUT
+          echo "flagged=$FLAGGED" >> $GITHUB_OUTPUT
+          echo "total=$TOTAL" >> $GITHUB_OUTPUT
+
+          if [ "$TOTAL" -gt 0 ]; then
+            PASS_RATE=$(awk "BEGIN {printf \"%.1f\", ($PASSED/$TOTAL)*100}")
+          else
+            PASS_RATE="0.0"
+          fi
+
+          echo "pass_rate=$PASS_RATE" >> $GITHUB_OUTPUT
+
+          echo ""
+          echo "QA Statistics:"
+          echo "  Passed: $PASSED"
+          echo "  Flagged: $FLAGGED"
+          echo "  Total: $TOTAL"
+          echo "  Pass rate: ${PASS_RATE}%"
+
+      - name: Analyze flagged translations
+        id: analyze_flagged
+        if: steps.qa_stats.outputs.flagged > 0
+        run: |
+          set -e
+
+          echo "🔍 Analyzing flagged translations..."
+
+          # Create summary of flagged issues
+          python3 << 'EOF'
+          import json
+          import os
+          from pathlib import Path
+          from collections import Counter
+
+          flagged_dir = Path("data/flagged")
+          if not flagged_dir.exists():
+              print("No flagged directory")
+              exit(0)
+
+          issue_types = Counter()
+          chinese_char_samples = set()
+
+          for f in flagged_dir.glob("*.json"):
+              try:
+                  with open(f) as file:
+                      data = json.load(file)
+
+                      status = data.get("_qa_status", "unknown")
+                      issue_types[status] += 1
+
+                      # Collect sample Chinese characters
+                      chars = data.get("_qa_chinese_chars", [])
+                      chinese_char_samples.update(chars[:5])
+              except Exception as e:
+                  print(f"Error reading {f}: {e}")
+
+          print(f"\nIssue breakdown:")
+          for issue, count in issue_types.most_common():
+              print(f"  {issue}: {count}")
+
+          if chinese_char_samples:
+              print(f"\nSample Chinese characters found: {', '.join(list(chinese_char_samples)[:10])}")
+          EOF
+
+      - name: Create GitHub issue if pass rate is low
+        if: steps.qa_stats.outputs.pass_rate < 90
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PASS_RATE="${{ steps.qa_stats.outputs.pass_rate }}"
+          FLAGGED="${{ steps.qa_stats.outputs.flagged }}"
+          TOTAL="${{ steps.qa_stats.outputs.total }}"
+
+          # Check if issue already exists
+          EXISTING=$(gh issue list --label "qa-alert" --state open --limit 1 --json number --jq '.[0].number' || echo "")
+
+          if [ -z "$EXISTING" ]; then
+            echo "📝 Creating GitHub issue for low pass rate..."
+
+            gh issue create \
+              --title "⚠️ Low QA Pass Rate: ${PASS_RATE}%" \
+              --label "qa-alert" \
+              --body "## QA Alert: Low Pass Rate
+
+**Pass Rate**: ${PASS_RATE}% (threshold: 90%)
+
+### Statistics
+- **Passed**: ${{ steps.qa_stats.outputs.passed }} translations
+- **Flagged**: ${FLAGGED} translations
+- **Total**: ${TOTAL} translations
+
+### Action Required
+Review flagged translations in \`data/flagged/\` directory to identify patterns and improve translation quality.
+
+### Flagged Translations
+Download artifacts from recent workflow runs to review flagged translations.
+
+---
+*This issue was automatically created by the QA Report workflow.*
+*Close this issue once the pass rate improves above 90%.*" || echo "Failed to create issue"
+          else
+            echo "✓ QA alert issue already exists (#$EXISTING), skipping creation"
+          fi
+
+      - name: Generate QA report markdown
+        run: |
+          cat > data/qa_report.md << 'EOF'
+          # Translation QA Report
+
+          Generated: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
+          ## Summary
+
+          | Metric | Count | Percentage |
+          |--------|-------|------------|
+          | Passed | ${{ steps.qa_stats.outputs.passed }} | ${{ steps.qa_stats.outputs.pass_rate }}% |
+          | Flagged | ${{ steps.qa_stats.outputs.flagged }} | $(awk "BEGIN {printf \"%.1f\", 100-${{ steps.qa_stats.outputs.pass_rate }}}") % |
+          | **Total** | **${{ steps.qa_stats.outputs.total }}** | **100%** |
+
+          ## Status
+
+          - ✅ **Pass Rate**: ${{ steps.qa_stats.outputs.pass_rate }}%
+          - Target: ≥90%
+
+          ## Next Steps
+
+          1. Review flagged translations in `data/flagged/`
+          2. Identify common patterns in failures
+          3. Adjust translation prompts or QA thresholds if needed
+          4. Re-translate flagged papers after improvements
+
+          ---
+          *Report generated by [QA Report workflow](.github/workflows/qa_report.yml)*
+          EOF
+
+          echo "📄 QA report generated"
+          cat data/qa_report.md
+
+      - name: Upload QA report as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-report-${{ github.run_id }}
+          path: data/qa_report.md
+          retention-days: 90
+
+      - name: Print summary
+        run: |
+          echo ""
+          echo "="*60
+          echo "QA REPORT SUMMARY"
+          echo "="*60
+          echo "Pass Rate: ${{ steps.qa_stats.outputs.pass_rate }}%"
+          echo "Passed: ${{ steps.qa_stats.outputs.passed }}"
+          echo "Flagged: ${{ steps.qa_stats.outputs.flagged }}"
+          echo "Total: ${{ steps.qa_stats.outputs.total }}"
+          echo "="*60

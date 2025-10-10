@@ -345,6 +345,61 @@ def analyze_translation_quality(translation_path: str) -> QAResult:
     return qa_filter.check_translation(translation)
 
 
+def filter_translation_file(
+    translation: Dict[str, Any],
+    save_passed: bool = True,
+    save_flagged: bool = True,
+) -> Tuple[bool, QAResult]:
+    """
+    Filter a single translation and optionally save to appropriate directory.
+
+    Args:
+        translation: Translation dictionary
+        save_passed: If True, save passed translations to data/translated/
+        save_flagged: If True, save flagged translations to data/flagged/
+
+    Returns:
+        Tuple of (should_publish: bool, qa_result: QAResult)
+    """
+    import json
+    import os
+    from pathlib import Path
+
+    qa_filter = TranslationQAFilter()
+    qa_result = qa_filter.check_translation(translation)
+
+    paper_id = translation.get("id", "unknown")
+    should_publish = qa_filter.should_display(qa_result)
+
+    if should_publish and save_passed:
+        # Save to data/translated/
+        output_dir = Path("data/translated")
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_path = output_dir / f"{paper_id}.json"
+
+        with open(output_path, "w", encoding="utf-8") as f:
+            json.dump(translation, f, indent=2, ensure_ascii=False)
+
+    elif not should_publish and save_flagged:
+        # Save to data/flagged/ with QA metadata
+        output_dir = Path("data/flagged")
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_path = output_dir / f"{paper_id}_flagged.json"
+
+        # Add QA metadata
+        translation["_qa_status"] = qa_result.status.value
+        translation["_qa_score"] = qa_result.score
+        translation["_qa_issues"] = qa_result.issues
+        translation["_qa_chinese_chars"] = qa_result.chinese_chars
+        translation["_qa_chinese_ratio"] = qa_result.chinese_ratio
+        translation["_qa_flagged_fields"] = qa_result.flagged_fields
+
+        with open(output_path, "w", encoding="utf-8") as f:
+            json.dump(translation, f, indent=2, ensure_ascii=False)
+
+    return should_publish, qa_result
+
+
 if __name__ == "__main__":
     # Example usage
     import sys

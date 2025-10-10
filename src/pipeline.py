@@ -33,6 +33,28 @@ def run_cli() -> None:
         action="store_true",
         help="Skip selection step if data/selected.json exists",
     )
+    parser.add_argument(
+        "--with-qa",
+        action="store_true",
+        help="Enable QA filtering (saves passed to data/translated/, flagged to data/flagged/)",
+    )
+    parser.add_argument(
+        "--cloud-mode",
+        action="store_true",
+        help="Use cloud job queue (for GitHub Actions workflows)",
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=100,
+        help="Batch size for cloud mode (default: 100)",
+    )
+    parser.add_argument(
+        "--worker-id",
+        type=str,
+        default="local-worker",
+        help="Worker ID for cloud mode (default: local-worker)",
+    )
     args = parser.parse_args()
 
     # Selection step (unless skipped and selected.json already exists)
@@ -114,52 +136,124 @@ def run_cli() -> None:
     from .file_service import read_json
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
-    # Load selected papers
-    selected = read_json(selected_path)
-    if not isinstance(selected, list) or not selected:
-        log("No selected papers to translate; exiting")
-        return
+    # Determine worklist based on mode
+    if args.cloud_mode:
+        # Cloud mode: claim batch from cloud job queue
+        from .cloud_job_queue import cloud_queue
 
-    # Apply limit if set (>0)
-    if args.limit and args.limit > 0:
-        worklist = selected[: args.limit]
+        log(f"Cloud mode: claiming batch of {args.batch_size} jobs...")
+        jobs = cloud_queue.claim_batch(args.worker_id, batch_size=args.batch_size)
+
+        if not jobs:
+            log("No pending jobs in queue")
+            return
+
+        log(f"Claimed {len(jobs)} jobs")
+        worklist = [{"id": job["paper_id"]} for job in jobs]
     else:
-        worklist = selected
+        # Standard mode: use selection
+        selected = read_json(selected_path)
+        if not isinstance(selected, list) or not selected:
+            log("No selected papers to translate; exiting")
+            return
+
+        # Apply limit if set (>0)
+        if args.limit and args.limit > 0:
+            worklist = selected[: args.limit]
+        else:
+            worklist = selected
 
     service = TranslationService()
 
-    def _translate_one(paper_id: str) -> tuple[str, bool, str | None]:
+    # Import QA if enabled
+    if args.with_qa:
+        from .qa_filter import filter_translation_file
+
+    def _translate_one(paper_id: str) -> tuple[str, bool, str | None, bool | None]:
         try:
             log(f"Translating {paper_id}…")
             result_path = service.translate_paper(paper_id, dry_run=args.dry_run)
-            return paper_id, True, result_path
+
+            # QA filtering if enabled
+            qa_passed = None
+            if args.with_qa and not args.dry_run:
+                # Load translation
+                import json
+
+                with open(result_path, "r", encoding="utf-8") as f:
+                    translation = json.load(f)
+
+                # Filter and save to appropriate directory
+                qa_passed, qa_result = filter_translation_file(
+                    translation, save_passed=True, save_flagged=True
+                )
+
+                if qa_passed:
+                    log(f"  QA: PASS (score: {qa_result.score:.2f})")
+                else:
+                    log(
+                        f"  QA: FLAGGED ({qa_result.status.value}, score: {qa_result.score:.2f})"
+                    )
+
+            return paper_id, True, result_path, qa_passed
         except Exception as e:
-            return paper_id, False, str(e)
+            return paper_id, False, str(e), None
 
     successes = 0
     failures = 0
+    qa_passed_count = 0
+    qa_flagged_count = 0
+
     with ThreadPoolExecutor(max_workers=max(1, args.workers)) as ex:
         futures = {
             ex.submit(_translate_one, p["id"]): p["id"] for p in worklist if p.get("id")
         }
         for fut in as_completed(futures):
-            pid, ok, info = fut.result()
+            pid, ok, info, qa_passed = fut.result()
             if ok:
                 successes += 1
                 log(f"✓ {pid} → {info}")
+
+                # Update cloud queue if in cloud mode
+                if args.cloud_mode:
+                    from .cloud_job_queue import cloud_queue
+
+                    if qa_passed is False:
+                        cloud_queue.complete_job(pid, qa_passed=False)
+                        qa_flagged_count += 1
+                    else:
+                        cloud_queue.complete_job(pid, qa_passed=True)
+                        if qa_passed is True:
+                            qa_passed_count += 1
             else:
                 failures += 1
                 log(f"✗ {pid} failed: {info}")
 
-    # Render + index + pdf
-    log("Render step…")
-    os.system("python -m src.render")
-    os.system("python -m src.search_index")
-    os.system("python -m src.make_pdf")
+                # Mark as failed in cloud queue
+                if args.cloud_mode:
+                    from .cloud_job_queue import cloud_queue
 
-    # Send success notification to Discord
-    alerts = DiscordAlerts()
-    alerts.pipeline_success(successes, 0.0)  # Cost calculation TBD
+                    cloud_queue.fail_job(pid, str(info))
+
+    # Print QA summary if enabled
+    if args.with_qa:
+        total_qa = qa_passed_count + qa_flagged_count
+        pass_rate = (qa_passed_count / total_qa * 100) if total_qa > 0 else 0.0
+        log(f"\nQA Summary:")
+        log(f"  Passed: {qa_passed_count}")
+        log(f"  Flagged: {qa_flagged_count}")
+        log(f"  Pass rate: {pass_rate:.1f}%")
+
+    # Render + index + pdf (skip if cloud mode - will be done after all batches)
+    if not args.cloud_mode:
+        log("Render step…")
+        os.system("python -m src.render")
+        os.system("python -m src.search_index")
+        os.system("python -m src.make_pdf")
+
+        # Send success notification to Discord
+        alerts = DiscordAlerts()
+        alerts.pipeline_success(successes, 0.0)  # Cost calculation TBD
 
     log("Pipeline complete.")
 

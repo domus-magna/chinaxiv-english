@@ -1,0 +1,170 @@
+name: Translation Orchestrator
+
+on:
+  workflow_dispatch:
+    inputs:
+      total_batches:
+        description: 'Number of sequential batch runs (0 = run until queue empty)'
+        required: false
+        default: '0'
+      batch_size:
+        description: 'Papers per batch'
+        required: false
+        default: '500'
+      workers:
+        description: 'Parallel workers per batch'
+        required: false
+        default: '80'
+      runner_type:
+        description: 'Runner type'
+        required: false
+        default: 'ubuntu-latest-8-cores'
+      delay_between_batches:
+        description: 'Seconds to wait between batches'
+        required: false
+        default: '60'
+
+jobs:
+  orchestrate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install gh  # GitHub CLI for triggering workflows
+
+      - name: Check queue status
+        run: |
+          echo "📊 Initial queue status:"
+          python -m src.cloud_job_queue stats
+
+      - name: Run sequential batches
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+
+          TOTAL_BATCHES="${{ github.event.inputs.total_batches || '0' }}"
+          BATCH_SIZE="${{ github.event.inputs.batch_size || '500' }}"
+          WORKERS="${{ github.event.inputs.workers || '80' }}"
+          RUNNER_TYPE="${{ github.event.inputs.runner_type || 'ubuntu-latest-8-cores' }}"
+          DELAY="${{ github.event.inputs.delay_between_batches || '60' }}"
+
+          echo "🚀 Translation Orchestrator Starting"
+          echo "  Total batches: $TOTAL_BATCHES (0 = until empty)"
+          echo "  Batch size: $BATCH_SIZE papers"
+          echo "  Workers: $WORKERS"
+          echo "  Runner: $RUNNER_TYPE"
+          echo "  Delay between batches: ${DELAY}s"
+          echo ""
+
+          batch_count=0
+
+          while true; do
+            # Check queue stats
+            stats=$(python -m src.cloud_job_queue stats 2>&1)
+            pending=$(echo "$stats" | grep "pending" | awk '{print $2}' || echo "0")
+
+            echo "📊 Queue status: $pending pending jobs"
+
+            if [ "$pending" -eq 0 ]; then
+              echo "✅ Queue is empty, orchestration complete!"
+              break
+            fi
+
+            # Check if we've reached total_batches limit
+            if [ "$TOTAL_BATCHES" -gt 0 ] && [ "$batch_count" -ge "$TOTAL_BATCHES" ]; then
+              echo "✅ Reached batch limit ($TOTAL_BATCHES), stopping"
+              break
+            fi
+
+            batch_count=$((batch_count + 1))
+            echo ""
+            echo "🔄 Starting batch $batch_count..."
+
+            # Trigger batch workflow
+            gh workflow run translate_batch.yml \
+              -f batch_size="$BATCH_SIZE" \
+              -f workers="$WORKERS" \
+              -f runner_type="$RUNNER_TYPE" || {
+              echo "❌ Failed to trigger batch workflow"
+              exit 1
+            }
+
+            echo "   Batch workflow triggered"
+            echo "   Waiting ${DELAY}s before next batch..."
+            sleep "$DELAY"
+
+            # Wait for workflow to start and run
+            echo "   Waiting for batch to complete (~2-3 hours for 500 papers)..."
+            sleep 300  # Wait 5 minutes for workflow to start
+
+            # Poll for completion (check every 5 minutes)
+            while true; do
+              # Pull latest queue state
+              git pull origin main --rebase || echo "Pull failed, continuing..."
+
+              # Check if batch completed (pending count decreased)
+              new_stats=$(python -m src.cloud_job_queue stats 2>&1)
+              new_pending=$(echo "$new_stats" | grep "pending" | awk '{print $2}' || echo "0")
+
+              echo "   Pending jobs: $new_pending (was $pending)"
+
+              if [ "$new_pending" -lt "$pending" ]; then
+                echo "   ✓ Batch progressing..."
+                pending=$new_pending
+                sleep 300  # Check again in 5 minutes
+              else
+                echo "   Batch appears complete or stalled"
+                break
+              fi
+
+              # Safety: max 6 hours per batch
+              if [ $SECONDS -gt 21600 ]; then
+                echo "   ⚠️ Batch timeout (6 hours), moving to next"
+                break
+              fi
+            done
+          done
+
+          echo ""
+          echo "🎉 Orchestration complete!"
+          echo "   Total batches run: $batch_count"
+
+      - name: Final queue statistics
+        if: always()
+        run: |
+          echo ""
+          echo "📊 Final Queue Statistics:"
+          python -m src.cloud_job_queue stats
+
+      - name: Trigger QA report
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "📋 Triggering QA report generation..."
+          gh workflow run qa_report.yml || echo "Failed to trigger QA report"
+
+      - name: Trigger site rebuild
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "🎨 Triggering site rebuild..."
+          gh workflow run build.yml || echo "Failed to trigger site rebuild"

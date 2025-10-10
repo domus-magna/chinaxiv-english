@@ -4,7 +4,12 @@ on:
   schedule:
     - cron: '0 3 * * *'
   workflow_dispatch:
-    {}
+    inputs:
+      skip_harvest:
+        description: 'Skip harvest and translation (rebuild only)'
+        required: false
+        default: 'false'
+        type: boolean
   push:
     branches:
       - main
@@ -62,38 +67,44 @@ jobs:
         run: |
           set -e
           echo "🚀 Starting build process..."
-          
-          # Attempt ChinaXiv harvest via BrightData if credentials provided
-          if [ -n "${BRIGHTDATA_API_KEY}" ] && [ -n "${BRIGHTDATA_ZONE}" ]; then
-            echo "📥 Harvesting from ChinaXiv (BrightData)…"
-            CURR=$(date -u +"%Y%m")
-            PREV=$(date -u -d "-1 month" +"%Y%m")
-            echo "   Current month: $CURR"
-            echo "   Previous month: $PREV"
-            python -m src.harvest_chinaxiv_optimized --month "$CURR" || echo "⚠️ Harvest current month failed; continuing"
-            python -m src.harvest_chinaxiv_optimized --month "$PREV" || echo "⚠️ Harvest previous month failed; continuing"
-          else
-            echo "ℹ️ BrightData credentials not set; skipping harvest"
-          fi
-          echo "🔍 Preparing records for selection..."
-          python .github/scripts/merge_current_prev_records.py
 
-          echo "📋 Selecting new items (no limit)..."
-          if [ -f data/records/_merged_current_prev.json ]; then
-            python -m src.select_and_fetch --records data/records/_merged_current_prev.json --output data/selected.json || {
-              echo "⚠️ Record selection failed, using empty selection";
+          SKIP_HARVEST="${{ github.event.inputs.skip_harvest || 'false' }}"
+
+          if [ "$SKIP_HARVEST" = "false" ]; then
+            # Attempt ChinaXiv harvest via BrightData if credentials provided
+            if [ -n "${BRIGHTDATA_API_KEY}" ] && [ -n "${BRIGHTDATA_ZONE}" ]; then
+              echo "📥 Harvesting from ChinaXiv (BrightData)…"
+              CURR=$(date -u +"%Y%m")
+              PREV=$(date -u -d "-1 month" +"%Y%m")
+              echo "   Current month: $CURR"
+              echo "   Previous month: $PREV"
+              python -m src.harvest_chinaxiv_optimized --month "$CURR" || echo "⚠️ Harvest current month failed; continuing"
+              python -m src.harvest_chinaxiv_optimized --month "$PREV" || echo "⚠️ Harvest previous month failed; continuing"
+            else
+              echo "ℹ️ BrightData credentials not set; skipping harvest"
+            fi
+            echo "🔍 Preparing records for selection..."
+            python .github/scripts/merge_current_prev_records.py
+
+            echo "📋 Selecting new items (no limit)..."
+            if [ -f data/records/_merged_current_prev.json ]; then
+              python -m src.select_and_fetch --records data/records/_merged_current_prev.json --output data/selected.json || {
+                echo "⚠️ Record selection failed, using empty selection";
+                echo '[]' > data/selected.json;
+              }
+            else
+              echo "⚠️ No records found to select";
               echo '[]' > data/selected.json;
+            fi
+
+            # Translate
+            echo "🌐 Running translation pipeline..."
+            python -m src.pipeline --skip-selection --workers 20 || {
+              echo "⚠️ Translation failed, continuing with existing translations"
             }
           else
-            echo "⚠️ No records found to select";
-            echo '[]' > data/selected.json;
+            echo "ℹ️ Skipping harvest and translation (rebuild only)"
           fi
-          
-          # Translate
-          echo "🌐 Running translation pipeline..."
-          python -m src.pipeline --skip-selection --workers 20 || {
-            echo "⚠️ Translation failed, continuing with existing translations"
-          }
           
           # Render site
           echo "🎨 Rendering site..."
