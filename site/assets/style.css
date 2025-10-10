@@ -926,6 +926,16 @@ pre {
   opacity: 1;
 }
 
+.wallet-address.placeholder {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.wallet-address.placeholder:hover {
+  border-color: var(--border);
+  background: var(--bg-light);
+}
+
 .qr-code {
   text-align: center;
 }
