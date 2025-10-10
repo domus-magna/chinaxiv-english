@@ -29,6 +29,9 @@
           {% if item.license and item.license.badge %}
             <span class="badge">{{ item.license.badge }}</span>
           {% endif %}
+          {% if not item._has_full_text %}
+            <span class="badge">Abstract only</span>
+          {% endif %}
         </div>
 
         {# Cite-as line #}
@@ -67,12 +70,12 @@
           {{ (item.abstract_md or item.abstract_en) | markdown | safe }}
         </div>
 
-        {% if item.formatted_body_md %}
+        {% if item._has_full_text and item.formatted_body_md %}
           <h2>Full Text</h2>
           <div class="full-text-preview">
             {{ item.formatted_body_md | markdown | safe }}
           </div>
-        {% elif item.body_en %}
+        {% elif item._has_full_text and item.body_en %}
           <h2>Full Text</h2>
           <div class="full-text-preview">
             {% for p in item.body_en %}
@@ -94,13 +97,16 @@
 
       <div class="paper-sidebar">
         <div class="sidebar-section">
-          <h3>Access Paper</h3>
+          <h3>{% if item._has_full_text %}Access Paper{% else %}Access Abstract{% endif %}</h3>
+          {% if not item._has_full_text %}
+          <div class="banner" role="status">This record includes the abstract only. Full text is not available in this view.</div>
+          {% endif %}
           <ul class="sidebar-actions">
             {% if item.pdf_url %}
-            <li><a href="{{ item.pdf_url }}" class="sidebar-btn primary" target="_blank" rel="noopener">Download PDF</a></li>
+            <li><a href="{{ item.pdf_url }}" class="sidebar-btn primary" target="_blank" rel="noopener">{% if item._has_full_text %}Download PDF{% else %}Original PDF (ChinaXiv){% endif %}</a></li>
             {% endif %}
-            <li><a href="{{ '/items/' ~ item.id ~ '/' ~ item.id ~ '.md' }}" class="sidebar-btn">View Markdown</a></li>
-            {% if item.body_en %}
+            <li><a href="{{ '/items/' ~ item.id ~ '/' ~ item.id ~ '.md' }}" class="sidebar-btn">{% if item._has_full_text %}View Markdown{% else %}View Abstract (MD){% endif %}</a></li>
+            {% if item._has_full_text %}
             <li><a href="{{ '/items/' ~ item.id ~ '/' ~ item.id ~ '.pdf' }}" class="sidebar-btn">Full Text PDF</a></li>
             {% endif %}
           </ul>
