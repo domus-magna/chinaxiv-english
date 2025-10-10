@@ -115,7 +115,19 @@ def render_site(items: List[Dict[str, Any]]) -> None:
         elif it.get("body_en"):
             it["formatted_body_md"] = format_translation_to_markdown(it)
 
-        html = tmpl_item.render(item=it, root="../..", build_version=build_version)
+        # Page metadata (arXiv-style polish): use root-relative canonical
+        title_text = (it.get("title_en") or "")
+        canonical_rel = f"/items/{it['id']}/"
+        html = tmpl_item.render(
+            item=it,
+            root="../..",
+            build_version=build_version,
+            title=f"{title_text} — ChinaXiv {it['id']}",
+            canonical_url=canonical_rel,
+            og_title=title_text,
+            og_description=(it.get("abstract_en") or "")[:200],
+            og_url=canonical_rel,
+        )
         write_text(os.path.join(out_dir, "index.html"), html)
         # Markdown export (prefer formatted body/abstract if present)
         abstract_md = it.get("abstract_md") or (it.get("abstract_en") or "")
@@ -141,6 +153,11 @@ def render_site(items: List[Dict[str, Any]]) -> None:
         )
         md = "\n\n".join(md_parts) + "\n"
         write_text(os.path.join(out_dir, f"{it['id']}.md"), md)
+
+        # Optional arXiv-style alias: /abs/<id>/ in addition to /items/<id>/
+        abs_dir = os.path.join(base_out, "abs", it["id"])
+        ensure_dir(abs_dir)
+        write_text(os.path.join(abs_dir, "index.html"), html)
 
 
 def run_cli() -> None:

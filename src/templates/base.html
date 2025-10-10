@@ -5,6 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{{ title or 'ChinaXiv Translations' }}</title>
     <meta name="description" content="Machine-translated preprints from ChinaXiv (Chinese arXiv)" />
+    <meta name="keywords" content="ChinaXiv, Chinese research, academic papers, machine translation, arXiv, science, research" />
+    <meta name="author" content="ChinaXiv Translations" />
+    <!-- OpenGraph / Social Meta -->
+    <meta property="og:title" content="{{ og_title or (title or 'ChinaXiv Translations') }}" />
+    <meta property="og:description" content="{{ og_description or 'Machine-translated preprints from ChinaXiv (Chinese arXiv)' }}" />
+    <meta property="og:type" content="{{ og_type or 'website' }}" />
+    <meta property="og:url" content="{{ og_url or 'https://chinaxiv-english.pages.dev' }}" />
+    <meta property="og:site_name" content="ChinaXiv Translations" />
+    <meta name="twitter:card" content="{{ twitter_card or 'summary' }}" />
+    <meta name="twitter:title" content="{{ twitter_title or (title or 'ChinaXiv Translations') }}" />
+    <meta name="twitter:description" content="{{ twitter_description or 'Machine-translated preprints from ChinaXiv (Chinese arXiv)' }}" />
+    <link rel="canonical" href="{{ canonical_url or (og_url or 'https://chinaxiv-english.pages.dev') }}" />
     <link rel="stylesheet" href="{{ root }}/assets/style.css?v={{ build_version }}" />
     <script>
       window.MathJax = { tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] } };
@@ -44,12 +56,14 @@
             </div>
           </div>
           <div class="footer-section">
-            <h4>Tools</h4>
+            <h4>Resources</h4>
             <div class="footer-links">
               <a href="{{ root }}/search">Advanced Search</a>
               <a href="{{ root }}/browse">Browse All</a>
               <a href="{{ root }}/stats">Statistics</a>
               <a href="{{ root }}/api">API</a>
+              <a href="{{ root }}/help">Help</a>
+              <a href="{{ root }}/contact">Contact</a>
             </div>
           </div>
           <div class="footer-section">
@@ -64,9 +78,7 @@
             <p class="footer-meta">
               Last updated: 2025-10-05<br>
               <a href="https://github.com/seconds-0/chinaxiv-english" target="_blank" rel="noopener">Source Code</a><br>
-              <a href="{{ root }}/donation.html">Support Us</a><br>
-              <a href="{{ root }}/help">Help</a><br>
-              <a href="{{ root }}/contact">Contact</a>
+              <a href="{{ root }}/donation.html">Support Us</a>
             </p>
           </div>
         </div>

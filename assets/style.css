@@ -102,7 +102,7 @@ main {
   border-radius: 4px 0 0 4px;
   background: rgba(255, 255, 255, 0.1);
   color: #fff;
-  font-size: 14px;
+  font-size: 16px;
   outline: none;
 }
 
@@ -436,6 +436,15 @@ a:hover { color: var(--arxiv-link-hover); }
   margin-bottom: 8px;
 }
 
+/* Subheader classification line */
+.subheader h1 {
+  font-size: 14px;
+  color: var(--fg-muted);
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  text-transform: none;
+}
+
 .paper .meta {
   margin: 12px 0;
   padding-bottom: 12px;
@@ -624,6 +633,33 @@ a:hover { color: var(--arxiv-link-hover); }
   color: var(--fg);
   font-style: normal;
   margin-right: 0.5rem;
+}
+
+/* Metadata table (dl) */
+.meta-table dl {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 8px 16px;
+  align-items: start;
+  margin: 8px 0 0;
+}
+
+.meta-table dt {
+  font-weight: 600;
+  color: var(--fg);
+  text-align: right;
+}
+
+.meta-table dd {
+  margin: 0;
+  color: var(--fg);
+}
+
+@media (max-width: 640px) {
+  .meta-table dl {
+    grid-template-columns: 1fr;
+  }
+  .meta-table dt { text-align: left; }
 }
 
 /* Source link */

@@ -8,22 +8,58 @@
   <article class="paper">
     <div class="paper-layout">
       <div class="paper-main">
-        <div style="margin-bottom: 16px;">
+        {# Subject classification line, arXiv-style #}
+        {% if item.subjects_en or item.subjects %}
+          <div class="subheader">
+            <h1>{{ (item.subjects_en or item.subjects)[0] }}</h1>
+          </div>
+        {% endif %}
+
+        <div style="margin-bottom: 12px;">
           <span class="descriptor">Title:</span> {{ item.title_en }}
         </div>
 
-        <div style="margin-bottom: 16px;">
+        <div style="margin-bottom: 8px;">
           <span class="descriptor">Authors:</span> {{ ', '.join(item.creators_en or item.creators or ['Unknown']) }}
         </div>
 
+        {# Dateline and quick meta #}
         <div class="meta">
-          <span>Submitted: {{ item.date }}</span>
-          {% if item.subjects or item.subjects_en %}
-          <span> | Subjects: {{ ', '.join(item.subjects_en or item.subjects or []) }}</span>
-          {% endif %}
+          <span class="dateline">[Submitted on {{ item.date or 'N/A' }}]</span>
           {% if item.license and item.license.badge %}
-          <span class="badge">{{ item.license.badge }}</span>
+            <span class="badge">{{ item.license.badge }}</span>
           {% endif %}
+        </div>
+
+        {# Cite-as line #}
+        <div class="meta">
+          <span class="descriptor">Cite as:</span> ChinaXiv: {{ item.id }}
+        </div>
+
+        {# Optional metadata table similar to arXiv (only shows present fields) #}
+        <div class="meta-table" style="margin: 16px 0 8px;">
+          <dl>
+            {% if item.subjects_en or item.subjects %}
+              <dt>Subjects:</dt>
+              <dd>{{ ', '.join(item.subjects_en or item.subjects or []) }}</dd>
+            {% endif %}
+            {% if item.doi %}
+              <dt>DOI:</dt>
+              <dd><a href="https://doi.org/{{ item.doi }}" target="_blank" rel="noopener">{{ item.doi }}</a></dd>
+            {% endif %}
+            {% if item.journal_ref %}
+              <dt>Journal ref:</dt>
+              <dd>{{ item.journal_ref }}</dd>
+            {% endif %}
+            {% if item.comments %}
+              <dt>Comments:</dt>
+              <dd>{{ item.comments }}</dd>
+            {% endif %}
+            {% if item.report_num %}
+              <dt>Report number:</dt>
+              <dd>{{ item.report_num }}</dd>
+            {% endif %}
+          </dl>
         </div>
 
         <h2>Abstract</h2>
@@ -47,6 +83,12 @@
 
         <div class="source">
           <a href="{{ item.source_url }}" target="_blank" rel="noopener">View original on ChinaXiv</a>
+        </div>
+
+        {# Submission history (single entry, we do not have versions) #}
+        <div class="submission-history">
+          <h2>Submission history</h2>
+          <div class="dateline">[v1] {{ item.date or 'N/A' }}</div>
         </div>
       </div>
 
@@ -92,11 +134,43 @@
   </article>
 
   <script>
+    // Clipboard helper with fallback
+    function copyToClipboard(text, successMessage) {
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(() => {
+          alert(successMessage);
+        }).catch(() => {
+          fallbackCopyToClipboard(text, successMessage);
+        });
+      } else {
+        fallbackCopyToClipboard(text, successMessage);
+      }
+    }
+
+    function fallbackCopyToClipboard(text, successMessage) {
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      textArea.style.top = '-999999px';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      
+      try {
+        document.execCommand('copy');
+        alert(successMessage);
+      } catch (err) {
+        console.error('Failed to copy text: ', err);
+        alert('Failed to copy to clipboard');
+      }
+      
+      document.body.removeChild(textArea);
+    }
+
     function copyCitation() {
       const citation = `{{ (item.creators_en or item.creators)[0] if (item.creators_en or item.creators) else 'Unknown' }} ({{ item.date[:4] if item.date else 'N/A' }}). {{ item.title_en }}. ChinaXiv: {{ item.id }}.`;
-      navigator.clipboard.writeText(citation).then(() => {
-        alert('Citation copied to clipboard!');
-      });
+      copyToClipboard(citation, 'Citation copied to clipboard!');
     }
 
     function exportBibTeX() {
@@ -104,7 +178,8 @@
       const authors = {{ ', '.join(item.creators_en or item.creators or ['Unknown'])|tojson }};
       const year = {{ item.date[:4] if item.date else 'N/A'|tojson }};
       const url = {{ item.source_url|tojson }};
-      const id = {{ item.id.replace('-', '')|tojson }};
+      // Replace dots and hyphens with underscores for valid BibTeX ID
+      const id = {{ item.id|tojson }}.replace(/[.-]/g, '_');
       
       const bibtex = `@article{chinaxiv${id},
   title={${title}},
@@ -113,9 +188,7 @@
   year={${year}},
   url={${url}}
 }`;
-      navigator.clipboard.writeText(bibtex).then(() => {
-        alert('BibTeX citation copied to clipboard!');
-      });
+      copyToClipboard(bibtex, 'BibTeX citation copied to clipboard!');
     }
 
     function sharePaper() {
@@ -126,9 +199,7 @@
           url: window.location.href
         });
       } else {
-        navigator.clipboard.writeText(window.location.href).then(() => {
-          alert('Paper URL copied to clipboard!');
-        });
+        copyToClipboard(window.location.href, 'Paper URL copied to clipboard!');
       }
     }
 
