@@ -64,7 +64,7 @@
 
         <h2>Abstract</h2>
         <div class="abstract-blockquote">
-          <span class="descriptor">Abstract:</span>{{ (item.abstract_md or item.abstract_en) | markdown | safe }}
+          {{ (item.abstract_md or item.abstract_en) | markdown | safe }}
         </div>
 
         {% if item.formatted_body_md %}

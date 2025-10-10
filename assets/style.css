@@ -123,13 +123,22 @@ main {
   border-left: none;
   border-radius: 0 4px 4px 0;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
   transition: background-color 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .header-search button:hover {
   background: rgba(255, 255, 255, 0.3);
+}
+
+/* Ensure header search input and button are equal height */
+.header-search input,
+.header-search button {
+  height: 40px;
 }
 
 /* Donate button */
