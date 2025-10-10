@@ -760,6 +760,34 @@ a:hover { color: var(--arxiv-link-hover); }
   text-decoration: underline;
 }
 
+.search-loading {
+  text-align: center;
+  padding: 2rem;
+  color: var(--fg-muted);
+}
+
+.loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--border-light);
+  border-top: 2px solid var(--arxiv-blue);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.no-results {
+  text-align: center;
+  padding: 2rem;
+  color: var(--fg-muted);
+  font-style: italic;
+}
+
 /* Code blocks */
 code,
 pre {
@@ -900,6 +928,20 @@ pre {
 
 .qr-code {
   text-align: center;
+}
+
+.qr-code img {
+  width: 200px;
+  height: 200px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  margin-bottom: 0.5rem;
+}
+
+.qr-label {
+  font-size: 12px;
+  color: var(--fg-muted);
+  font-weight: 500;
 }
 
 .qr-placeholder {
@@ -1938,14 +1980,20 @@ pre {
     order: 2;
   }
 
+  .header-search input {
+    font-size: 16px; /* Prevent zoom on iOS */
+  }
+
   .donate-btn {
     order: 3;
     text-align: center;
+    padding: 10px 16px;
   }
 
   .site-header .brand {
     order: 1;
     text-align: center;
+    font-size: 18px;
   }
 
   .header-breadcrumbs {
