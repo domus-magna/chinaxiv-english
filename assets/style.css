@@ -445,6 +445,10 @@ a:hover { color: var(--arxiv-link-hover); }
   margin-bottom: 8px;
 }
 
+.subheader {
+  text-align: left;
+}
+
 /* Subheader classification line */
 .subheader h1 {
   font-size: 14px;
@@ -746,6 +750,9 @@ a:hover { color: var(--arxiv-link-hover); }
   font-weight: 600;
   transition: background-color 0.2s ease;
   min-width: 100px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .search-btn:hover {
@@ -785,6 +792,12 @@ a:hover { color: var(--arxiv-link-hover); }
 
 #search-results {
   margin-top: 12px;
+}
+
+/* Ensure homepage search input/button heights match header search */
+#search-input,
+.search-btn {
+  height: 40px;
 }
 
 #search-results .res {

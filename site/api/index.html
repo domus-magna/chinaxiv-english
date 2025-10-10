@@ -3,14 +3,18 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>API Documentation - ChinaXiv Translations</title>
-    <meta name="description" content="API documentation for programmatic access to ChinaXiv Translations" />
-    <link rel="stylesheet" href="../assets/style.css?v=1759990482" />
-    <script>
-      window.MathJax = { tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] } };
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" defer></script>
-    <script src="../assets/pako.min.js?v=1759990482"></script>
+    <title>API Status - ChinaXiv Translations</title>
+    <meta name="description" content="API status and alternatives for programmatic access" />
+    <meta property="og:title" content="API Status - ChinaXiv Translations" />
+    <meta property="og:description" content="API endpoints are planned. Use search-index.json for now." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://chinaxiv-english.pages.dev/api/" />
+    <meta property="og:site_name" content="ChinaXiv Translations" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="API Status - ChinaXiv Translations" />
+    <meta name="twitter:description" content="API endpoints are planned. Use search-index.json for now." />
+    <link rel="canonical" href="https://chinaxiv-english.pages.dev/api/" />
+    <link rel="stylesheet" href="../assets/style.css" />
   </head>
   <body>
     <header class="site-header">
@@ -23,415 +27,36 @@
           </div>
           <a href="../donation.html" class="donate-btn">Donate</a>
         </div>
-        
         <div class="header-breadcrumbs">
-          <a href="../">Home</a> <span class="sep">&gt;</span> API Documentation
+          <a href="../">Home</a> <span class="sep">&gt;</span> API Status
         </div>
       </div>
     </header>
     <main class="container">
-      
       <div class="page-header">
-        <h1>API Documentation</h1>
-        <p class="page-description">
-          Programmatic access to ChinaXiv Translations data through our REST API.
-        </p>
+        <h1>API Status</h1>
+        <p class="page-description">No public REST API is available today. This page documents current alternatives and future plans.</p>
       </div>
-
       <div class="api-content">
         <div class="api-section">
-          <h2>Getting Started</h2>
-          <p>Our API provides programmatic access to our translation database. All endpoints return JSON data and support CORS for web applications.</p>
-          
-          <div class="api-info">
-            <h3>Base URL</h3>
-            <code>https://chinaxiv-english.pages.dev/api/</code>
-          </div>
-          
-          <div class="api-info">
-            <h3>Rate Limits</h3>
-            <p>Currently no rate limits are enforced, but please be respectful with your usage. If you need higher limits, please <a href="../contact">contact us</a>.</p>
-          </div>
-        </div>
-
-        <div class="api-section">
-          <h2>Endpoints</h2>
-          
-          <div class="endpoint">
-            <h3>GET /api/papers</h3>
-            <p>Retrieve a list of all papers with optional filtering and pagination.</p>
-            
-            <div class="endpoint-details">
-              <h4>Parameters</h4>
-              <table class="api-table">
-                <thead>
-                  <tr>
-                    <th>Parameter</th>
-                    <th>Type</th>
-                    <th>Description</th>
-                    <th>Example</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>limit</td>
-                    <td>integer</td>
-                    <td>Number of results to return (max 100)</td>
-                    <td>?limit=20</td>
-                  </tr>
-                  <tr>
-                    <td>offset</td>
-                    <td>integer</td>
-                    <td>Number of results to skip</td>
-                    <td>?offset=40</td>
-                  </tr>
-                  <tr>
-                    <td>category</td>
-                    <td>string</td>
-                    <td>Filter by category</td>
-                    <td>?category=cs</td>
-                  </tr>
-                  <tr>
-                    <td>date_from</td>
-                    <td>date</td>
-                    <td>Filter papers from this date (YYYY-MM-DD)</td>
-                    <td>?date_from=2025-01-01</td>
-                  </tr>
-                  <tr>
-                    <td>date_to</td>
-                    <td>date</td>
-                    <td>Filter papers to this date (YYYY-MM-DD)</td>
-                    <td>?date_to=2025-12-31</td>
-                  </tr>
-                </tbody>
-              </table>
-              
-              <h4>Example Request</h4>
-              <pre><code>GET /api/papers?limit=10&category=cs&date_from=2025-01-01</code></pre>
-              
-              <h4>Example Response</h4>
-              <pre><code>{
-  "papers": [
-    {
-      "id": "chinaxiv-202510.00001",
-      "title": "Machine Learning Applications in Computer Vision",
-      "authors": "Zhang Wei, Li Ming",
-      "abstract": "This paper presents...",
-      "subjects": "Computer Science, Machine Learning",
-      "date": "2025-10-01",
-      "url": "https://chinaxiv-english.pages.dev/items/chinaxiv-202510.00001/"
-    }
-  ],
-  "total": 150,
-  "limit": 10,
-  "offset": 0
-}</code></pre>
-            </div>
-          </div>
-
-          <div class="endpoint">
-            <h3>GET /api/papers/{id}</h3>
-            <p>Retrieve detailed information about a specific paper.</p>
-            
-            <div class="endpoint-details">
-              <h4>Parameters</h4>
-              <table class="api-table">
-                <thead>
-                  <tr>
-                    <th>Parameter</th>
-                    <th>Type</th>
-                    <th>Description</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>id</td>
-                    <td>string</td>
-                    <td>Paper ID (e.g., chinaxiv-202510.00001)</td>
-                  </tr>
-                </tbody>
-              </table>
-              
-              <h4>Example Request</h4>
-              <pre><code>GET /api/papers/chinaxiv-202510.00001</code></pre>
-              
-              <h4>Example Response</h4>
-              <pre><code>{
-  "id": "chinaxiv-202510.00001",
-  "title": "Machine Learning Applications in Computer Vision",
-  "authors": "Zhang Wei, Li Ming",
-  "abstract": "This paper presents novel approaches...",
-  "subjects": "Computer Science, Machine Learning",
-  "date": "2025-10-01",
-  "url": "https://chinaxiv-english.pages.dev/items/chinaxiv-202510.00001/",
-  "original_url": "https://www.chinaxiv.org/abs/202510.00001",
-  "markdown_url": "https://chinaxiv-english.pages.dev/items/chinaxiv-202510.00001/chinaxiv-202510.00001.md"
-}</code></pre>
-            </div>
-          </div>
-
-          <div class="endpoint">
-            <h3>GET /api/search</h3>
-            <p>Search papers by query string with optional filters.</p>
-            
-            <div class="endpoint-details">
-              <h4>Parameters</h4>
-              <table class="api-table">
-                <thead>
-                  <tr>
-                    <th>Parameter</th>
-                    <th>Type</th>
-                    <th>Description</th>
-                    <th>Example</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>q</td>
-                    <td>string</td>
-                    <td>Search query</td>
-                    <td>?q=machine learning</td>
-                  </tr>
-                  <tr>
-                    <td>limit</td>
-                    <td>integer</td>
-                    <td>Number of results to return (max 100)</td>
-                    <td>?limit=20</td>
-                  </tr>
-                  <tr>
-                    <td>category</td>
-                    <td>string</td>
-                    <td>Filter by category</td>
-                    <td>?category=cs</td>
-                  </tr>
-                </tbody>
-              </table>
-              
-              <h4>Example Request</h4>
-              <pre><code>GET /api/search?q=neural networks&limit=5</code></pre>
-              
-              <h4>Example Response</h4>
-              <pre><code>{
-  "query": "neural networks",
-  "papers": [
-    {
-      "id": "chinaxiv-202510.00001",
-      "title": "Deep Neural Networks for Image Recognition",
-      "authors": "Wang Lei, Chen Xiaoli",
-      "abstract": "This paper explores...",
-      "subjects": "Computer Science, Machine Learning",
-      "date": "2025-10-01",
-      "url": "https://chinaxiv-english.pages.dev/items/chinaxiv-202510.00001/"
-    }
-  ],
-  "total": 25,
-  "limit": 5
-}</code></pre>
-            </div>
-          </div>
-
-          <div class="endpoint">
-            <h3>GET /api/stats</h3>
-            <p>Retrieve collection statistics and metrics.</p>
-            
-            <div class="endpoint-details">
-              <h4>Example Request</h4>
-              <pre><code>GET /api/stats</code></pre>
-              
-              <h4>Example Response</h4>
-              <pre><code>{
-  "total_papers": 150,
-  "total_authors": 89,
-  "total_categories": 12,
-  "papers_this_month": 25,
-  "categories": {
-    "Computer Science": 45,
-    "Mathematics": 32,
-    "Physics": 28,
-    "Biology": 20,
-    "Chemistry": 15,
-    "Engineering": 10
-  },
-  "last_updated": "2025-10-05T12:00:00Z"
-}</code></pre>
-            </div>
-          </div>
-        </div>
-
-        <div class="api-section">
-          <h2>Error Handling</h2>
-          <p>All API endpoints return appropriate HTTP status codes and error messages in JSON format.</p>
-          
-          <div class="error-examples">
-            <h3>Common Error Responses</h3>
-            
-            <div class="error-example">
-              <h4>404 Not Found</h4>
-              <pre><code>{
-  "error": "Paper not found",
-  "message": "The requested paper ID does not exist",
-  "status": 404
-}</code></pre>
-            </div>
-            
-            <div class="error-example">
-              <h4>400 Bad Request</h4>
-              <pre><code>{
-  "error": "Invalid parameters",
-  "message": "Limit must be between 1 and 100",
-  "status": 400
-}</code></pre>
-            </div>
-            
-            <div class="error-example">
-              <h4>500 Internal Server Error</h4>
-              <pre><code>{
-  "error": "Internal server error",
-  "message": "An unexpected error occurred",
-  "status": 500
-}</code></pre>
-            </div>
-          </div>
-        </div>
-
-        <div class="api-section">
-          <h2>Usage Examples</h2>
-          
-          <div class="example-section">
-            <h3>JavaScript/Fetch</h3>
-            <pre><code>// Get recent papers
-fetch('https://chinaxiv-english.pages.dev/api/papers?limit=10')
-  .then(response => response.json())
-  .then(data => {
-    console.log('Found', data.total, 'papers');
-    data.papers.forEach(paper => {
-      console.log(paper.title);
-    });
-  })
-  .catch(error => {
-    console.error('Error:', error);
-  });
-
-// Search for papers
-fetch('https://chinaxiv-english.pages.dev/api/search?q=machine learning&limit=5')
-  .then(response => response.json())
-  .then(data => {
-    console.log('Search results:', data.papers);
-  });</code></pre>
-          </div>
-          
-          <div class="example-section">
-            <h3>Python/Requests</h3>
-            <pre><code>import requests
-
-# Get papers by category
-response = requests.get('https://chinaxiv-english.pages.dev/api/papers', 
-                       params={'category': 'cs', 'limit': 20})
-data = response.json()
-
-print(f"Found {data['total']} papers")
-for paper in data['papers']:
-    print(f"- {paper['title']}")
-
-# Search for papers
-search_response = requests.get('https://chinaxiv-english.pages.dev/api/search',
-                              params={'q': 'neural networks', 'limit': 10})
-search_data = search_response.json()
-
-print(f"Search results: {len(search_data['papers'])} papers found")</code></pre>
-          </div>
-          
-          <div class="example-section">
-            <h3>cURL</h3>
-            <pre><code># Get all papers
-curl "https://chinaxiv-english.pages.dev/api/papers"
-
-# Search for papers
-curl "https://chinaxiv-english.pages.dev/api/search?q=machine%20learning&limit=10"
-
-# Get specific paper
-curl "https://chinaxiv-english.pages.dev/api/papers/chinaxiv-202510.00001"
-
-# Get statistics
-curl "https://chinaxiv-english.pages.dev/api/stats"</code></pre>
-          </div>
-        </div>
-
-        <div class="api-section">
-          <h2>Data Formats</h2>
-          
-          <div class="format-section">
-            <h3>Paper Object</h3>
-            <table class="api-table">
-              <thead>
-                <tr>
-                  <th>Field</th>
-                  <th>Type</th>
-                  <th>Description</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>id</td>
-                  <td>string</td>
-                  <td>Unique paper identifier</td>
-                </tr>
-                <tr>
-                  <td>title</td>
-                  <td>string</td>
-                  <td>Paper title (translated)</td>
-                </tr>
-                <tr>
-                  <td>authors</td>
-                  <td>string</td>
-                  <td>Comma-separated list of authors</td>
-                </tr>
-                <tr>
-                  <td>abstract</td>
-                  <td>string</td>
-                  <td>Paper abstract (translated)</td>
-                </tr>
-                <tr>
-                  <td>subjects</td>
-                  <td>string</td>
-                  <td>Comma-separated list of subjects/categories</td>
-                </tr>
-                <tr>
-                  <td>date</td>
-                  <td>string</td>
-                  <td>Publication date (YYYY-MM-DD)</td>
-                </tr>
-                <tr>
-                  <td>url</td>
-                  <td>string</td>
-                  <td>URL to the translated paper page</td>
-                </tr>
-                <tr>
-                  <td>original_url</td>
-                  <td>string</td>
-                  <td>URL to the original Chinese paper</td>
-                </tr>
-                <tr>
-                  <td>markdown_url</td>
-                  <td>string</td>
-                  <td>URL to the markdown version</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="api-section">
-          <h2>Support</h2>
-          <p>If you have questions about the API or need help integrating it into your application, please:</p>
+          <h2>Planned Endpoints</h2>
+          <p>The following endpoints were previously documented but are not yet implemented:</p>
           <ul>
-            <li>Check our <a href="../help">Help & FAQ</a> page</li>
-            <li>Contact us through our <a href="../contact">contact page</a></li>
-            <li>Open an issue on our <a href="https://github.com/seconds-0/chinaxiv-english" target="_blank" rel="noopener">GitHub repository</a></li>
+            <li><code>/api/papers</code></li>
+            <li><code>/api/papers/{id}</code></li>
+            <li><code>/api/search</code></li>
+            <li><code>/api/stats</code></li>
+          </ul>
+          <p>We will update this page when APIs are available.</p>
+        </div>
+        <div class="api-section">
+          <h2>Current Alternatives</h2>
+          <ul>
+            <li><strong>Search index:</strong> <a href="../search-index.json">search-index.json</a> (and <a href="../search-index.json.gz">.gz</a>) provides titles, abstracts, authors, ids, and URLs for all indexed papers.</li>
+            <li><strong>Static pages:</strong> Paper pages under <code>/items/&lt;id&gt;/</code> contain full metadata and links.</li>
           </ul>
         </div>
       </div>
-
     </main>
     <footer class="site-footer">
       <div class="container">
@@ -448,12 +73,14 @@ curl "https://chinaxiv-english.pages.dev/api/stats"</code></pre>
             </div>
           </div>
           <div class="footer-section">
-            <h4>Tools</h4>
+            <h4>Resources</h4>
             <div class="footer-links">
               <a href="../search">Advanced Search</a>
               <a href="../browse">Browse All</a>
               <a href="../stats">Statistics</a>
-              <a href="./">API</a>
+              <a href="../api">API</a>
+              <a href="../help">Help</a>
+              <a href="../contact">Contact</a>
             </div>
           </div>
           <div class="footer-section">
@@ -466,16 +93,13 @@ curl "https://chinaxiv-english.pages.dev/api/stats"</code></pre>
           <div class="footer-section">
             <h4>Project</h4>
             <p class="footer-meta">
-              Last updated: 2025-10-05<br>
               <a href="https://github.com/seconds-0/chinaxiv-english" target="_blank" rel="noopener">Source Code</a><br>
-              <a href="../donation.html">Support Us</a><br>
-              <a href="../help">Help</a><br>
-              <a href="../contact">Contact</a>
+              <a href="../donation.html">Support Us</a>
             </p>
           </div>
         </div>
       </div>
     </footer>
-    <script src="../assets/site.js?v=1759990482"></script>
+    <script src="../assets/site.js"></script>
   </body>
-</html>
+  </html>

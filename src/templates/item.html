@@ -9,9 +9,10 @@
     <div class="paper-layout">
       <div class="paper-main">
         {# Subject classification line, arXiv-style #}
-        {% if item.subjects_en or item.subjects %}
+        {% set _subjects = (item.subjects_en if item.subjects_en else (item.subjects if item.subjects else [])) %}
+        {% if _subjects and (_subjects|length) > 0 %}
           <div class="subheader">
-            <h1>{{ (item.subjects_en or item.subjects)[0] }}</h1>
+            <h1>{{ _subjects[0] }}</h1>
           </div>
         {% endif %}
 
@@ -42,9 +43,9 @@
         {# Optional metadata table similar to arXiv (only shows present fields) #}
         <div class="meta-table" style="margin: 16px 0 8px;">
           <dl>
-            {% if item.subjects_en or item.subjects %}
+            {% if _subjects and (_subjects|length) > 0 %}
               <dt>Subjects:</dt>
-              <dd>{{ ', '.join(item.subjects_en or item.subjects or []) }}</dd>
+              <dd>{{ ', '.join(_subjects) }}</dd>
             {% endif %}
             {% if item.doi %}
               <dt>DOI:</dt>
@@ -103,11 +104,11 @@
           {% endif %}
           <ul class="sidebar-actions">
             {% if item.pdf_url %}
-            <li><a href="{{ item.pdf_url }}" class="sidebar-btn primary" target="_blank" rel="noopener">{% if item._has_full_text %}Download PDF{% else %}Original PDF (ChinaXiv){% endif %}</a></li>
+            <li><a href="{{ item.pdf_url }}" class="sidebar-btn primary" target="_blank" rel="noopener" aria-label="Open original PDF on ChinaXiv">{% if item._has_full_text %}Download PDF{% else %}Original PDF (ChinaXiv){% endif %}</a></li>
             {% endif %}
-            <li><a href="{{ '/items/' ~ item.id ~ '/' ~ item.id ~ '.md' }}" class="sidebar-btn">{% if item._has_full_text %}View Markdown{% else %}View Abstract (MD){% endif %}</a></li>
+            <li><a href="{{ '/items/' ~ item.id ~ '/' ~ item.id ~ '.md' }}" class="sidebar-btn" aria-label="View Markdown version">{% if item._has_full_text %}View Markdown{% else %}View Abstract (MD){% endif %}</a></li>
             {% if item._has_full_text %}
-            <li><a href="{{ '/items/' ~ item.id ~ '/' ~ item.id ~ '.pdf' }}" class="sidebar-btn">Full Text PDF</a></li>
+            <li><a href="{{ '/items/' ~ item.id ~ '/' ~ item.id ~ '.pdf' }}" class="sidebar-btn" aria-label="Download full text PDF">Full Text PDF</a></li>
             {% endif %}
           </ul>
         </div>
@@ -115,24 +116,25 @@
         <div class="sidebar-section">
           <h3>Citation</h3>
           <ul class="sidebar-actions">
-            <li><a href="#" class="sidebar-btn" onclick="copyCitation()">Copy Citation</a></li>
-            <li><a href="#" class="sidebar-btn" onclick="exportBibTeX()">Export BibTeX</a></li>
+            <li><a href="#" class="sidebar-btn" onclick="copyCitation()" aria-label="Copy citation to clipboard">Copy Citation</a></li>
+            <li><a href="#" class="sidebar-btn" onclick="exportBibTeX()" aria-label="Export BibTeX citation">Export BibTeX</a></li>
           </ul>
         </div>
 
         <div class="sidebar-section">
           <h3>Share</h3>
           <ul class="sidebar-actions">
-            <li><a href="#" class="sidebar-btn" onclick="sharePaper()">Share Paper</a></li>
-            <li><a href="#" class="sidebar-btn" onclick="bookmarkPaper()">Bookmark</a></li>
+            <li><a href="#" class="sidebar-btn" onclick="sharePaper()" aria-label="Share this paper">Share Paper</a></li>
+            <li><a href="#" class="sidebar-btn" onclick="bookmarkPaper()" aria-label="Bookmark this paper">Bookmark</a></li>
           </ul>
         </div>
 
         <div class="sidebar-section">
           <h3>Related</h3>
           <ul class="sidebar-actions">
-            <li><a href="{{ root }}/" class="sidebar-btn">Browse More Papers</a></li>
-            <li><a href="{{ root }}/?category={{ (item.subjects_en or item.subjects)[0].lower() if (item.subjects_en or item.subjects) else 'all' }}" class="sidebar-btn">Similar Papers</a></li>
+            <li><a href="{{ root }}/" class="sidebar-btn" aria-label="Browse more papers">Browse More Papers</a></li>
+            {% set _first_subject = (_subjects[0] | lower) if (_subjects and (_subjects|length) > 0) else 'all' %}
+            <li><a href="{{ root }}/?category={{ _first_subject }}" class="sidebar-btn" aria-label="See similar papers">Similar Papers</a></li>
           </ul>
         </div>
       </div>
@@ -179,11 +181,15 @@
       copyToClipboard(citation, 'Citation copied to clipboard!');
     }
 
+    function escapeBibTeX(s) {
+      return (s || '').replace(/[{}\\]/g, '\\$&');
+    }
+
     function exportBibTeX() {
-      const title = {{ item.title_en|tojson }};
-      const authors = {{ ', '.join(item.creators_en or item.creators or ['Unknown'])|tojson }};
+      const title = escapeBibTeX({{ item.title_en|tojson }});
+      const authors = escapeBibTeX({{ ', '.join(item.creators_en or item.creators or ['Unknown'])|tojson }});
       const year = {{ item.date[:4] if item.date else 'N/A'|tojson }};
-      const url = {{ item.source_url|tojson }};
+      const url = escapeBibTeX({{ item.source_url|tojson }});
       // Replace dots and hyphens with underscores for valid BibTeX ID
       const id = {{ item.id|tojson }}.replace(/[.-]/g, '_');
       
@@ -199,32 +205,41 @@
 
     function sharePaper() {
       if (navigator.share) {
-        navigator.share({
-          title: {{ item.title_en|tojson }},
-          text: 'Check out this paper from ChinaXiv Translations',
-          url: window.location.href
-        });
+        try {
+          navigator.share({
+            title: {{ item.title_en|tojson }},
+            text: 'Check out this paper from ChinaXiv Translations',
+            url: window.location.href
+          }).catch(() => {
+            copyToClipboard(window.location.href, 'Paper URL copied to clipboard!');
+          });
+        } catch (e) {
+          copyToClipboard(window.location.href, 'Paper URL copied to clipboard!');
+        }
       } else {
         copyToClipboard(window.location.href, 'Paper URL copied to clipboard!');
       }
     }
 
     function bookmarkPaper() {
-      // Simple bookmark functionality
-      const bookmarks = JSON.parse(localStorage.getItem('chinaxiv_bookmarks') || '[]');
-      const bookmark = {
-        id: {{ item.id|tojson }},
-        title: {{ item.title_en|tojson }},
-        url: window.location.href,
-        date: new Date().toISOString()
-      };
-      
-      if (!bookmarks.find(b => b.id === bookmark.id)) {
-        bookmarks.push(bookmark);
-        localStorage.setItem('chinaxiv_bookmarks', JSON.stringify(bookmarks));
-        alert('Paper bookmarked!');
-      } else {
-        alert('Paper already bookmarked!');
+      try {
+        const bookmarks = JSON.parse(localStorage.getItem('chinaxiv_bookmarks') || '[]');
+        const bookmark = {
+          id: {{ item.id|tojson }},
+          title: {{ item.title_en|tojson }},
+          url: window.location.href,
+          date: new Date().toISOString()
+        };
+        if (!bookmarks.find(b => b.id === bookmark.id)) {
+          bookmarks.push(bookmark);
+          localStorage.setItem('chinaxiv_bookmarks', JSON.stringify(bookmarks));
+          alert('Paper bookmarked!');
+        } else {
+          alert('Paper already bookmarked!');
+        }
+      } catch (e) {
+        console.warn('Bookmarking unavailable', e);
+        alert('Bookmarking is unavailable in this browser or context.');
       }
     }
   </script>

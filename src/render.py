@@ -69,9 +69,13 @@ def render_site(items: List[Dict[str, Any]]) -> None:
 
         env.filters["markdown"] = markdown_filter
     except ImportError:
-        # Fallback: simple newline to <br> conversion
-        def simple_markdown(text):
-            return text.replace("\n\n", "</p><p>").replace("\n", "<br>")
+        # Fallback: wrap paragraphs and line breaks for valid HTML
+        def simple_markdown(text: str) -> str:
+            if not text:
+                return ""
+            paragraphs = [p.strip() for p in str(text).split("\n\n")]
+            html = "".join("<p>{}</p>".format(p.replace("\n", "<br>")) for p in paragraphs if p)
+            return html
 
         env.filters["markdown"] = simple_markdown
 
@@ -105,28 +109,59 @@ def render_site(items: List[Dict[str, Any]]) -> None:
 
     # Item pages
     tmpl_item = env.get_template("item.html")
+    site_base = "https://chinaxiv-english.pages.dev"
     for it in items:
         out_dir = os.path.join(base_out, "items", it["id"])
         ensure_dir(out_dir)
 
-        # Choose best-available body markdown for preview
-        if it.get("body_md"):
-            it["formatted_body_md"] = it["body_md"]
-        elif it.get("body_en"):
-            it["formatted_body_md"] = format_translation_to_markdown(it)
+        # Compute whether we have meaningful full text content.
+        has_full_text = False
+        body_md = it.get("body_md")
+        if isinstance(body_md, str) and body_md.strip():
+            # Consider content meaningful if there is non-heading text beyond trivial length.
+            lines = body_md.splitlines()
+            non_heading = [ln for ln in lines if not ln.strip().startswith("#")]
+            non_heading_text = "\n".join(non_heading).strip()
+            title_text = (it.get("title_en") or "").strip()
+            # If the only content is a heading matching the title, treat as not meaningful.
+            heading_only = (
+                len([ln for ln in lines if ln.strip().startswith("#")]) >= 1
+                and len(non_heading_text) == 0
+            )
+            if non_heading_text and len(non_heading_text) > 100:
+                has_full_text = True
+            elif not heading_only and len(body_md.strip()) > 200:
+                has_full_text = True
+        # Fallback: treat body_en arrays with sufficient content as full text
+        if not has_full_text:
+            body_en = it.get("body_en")
+            if isinstance(body_en, list) and any((p or "").strip() for p in body_en):
+                long_para = any(len((p or "").strip()) > 100 for p in body_en)
+                enough_paras = sum(1 for p in body_en if (p or "").strip()) >= 2
+                if long_para or enough_paras:
+                    has_full_text = True
 
-        # Page metadata (arXiv-style polish): use root-relative canonical
+        it["_has_full_text"] = has_full_text
+
+        # Choose best-available body markdown for preview only if meaningful
+        if has_full_text:
+            if body_md:
+                it["formatted_body_md"] = body_md
+            elif it.get("body_en"):
+                it["formatted_body_md"] = format_translation_to_markdown(it)
+
+        # Page metadata (arXiv-style polish): use absolute canonical
         title_text = (it.get("title_en") or "")
-        canonical_rel = f"/items/{it['id']}/"
+        canonical_abs = f"{site_base}/items/{it['id']}/"
         html = tmpl_item.render(
             item=it,
             root="../..",
             build_version=build_version,
             title=f"{title_text} — ChinaXiv {it['id']}",
-            canonical_url=canonical_rel,
+            canonical_url=canonical_abs,
             og_title=title_text,
             og_description=(it.get("abstract_en") or "")[:200],
-            og_url=canonical_rel,
+            og_url=canonical_abs,
         )
         write_text(os.path.join(out_dir, "index.html"), html)
         # Markdown export (prefer formatted body/abstract if present)
@@ -158,6 +193,59 @@ def render_site(items: List[Dict[str, Any]]) -> None:
         abs_dir = os.path.join(base_out, "abs", it["id"])
         ensure_dir(abs_dir)
         write_text(os.path.join(abs_dir, "index.html"), html)
+
+    # Generate sitemap including all item and alias pages
+    try:
+        from datetime import datetime
+
+        lastmod = datetime.utcnow().strftime("%Y-%m-%d")
+        urls: List[str] = []
+        # Static top-level pages that currently exist
+        urls.extend(
+            [
+                f"{site_base}/",
+                f"{site_base}/donation.html",
+                f"{site_base}/search/",
+                f"{site_base}/browse/",
+                f"{site_base}/help/",
+                f"{site_base}/contact/",
+                f"{site_base}/stats/",
+                f"{site_base}/api/",
+            ]
+        )
+        # Item pages and /abs aliases
+        for it in items:
+            pid = it.get("id")
+            if not pid:
+                continue
+            urls.append(f"{site_base}/items/{pid}/")
+            urls.append(f"{site_base}/abs/{pid}/")
+
+        def url_entry(u: str, priority: str = "0.5", changefreq: str = "weekly") -> str:
+            return (
+                "  <url>\n"
+                f"    <loc>{u}</loc>\n"
+                f"    <lastmod>{lastmod}</lastmod>\n"
+                f"    <changefreq>{changefreq}</changefreq>\n"
+                f"    <priority>{priority}</priority>\n"
+                "  </url>\n"
+            )
+
+        sitemap_xml = [
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n",
+            "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n",
+        ]
+        # Home gets higher priority
+        sitemap_xml.append(url_entry(f"{site_base}/", priority="1.0", changefreq="daily"))
+        # Add the rest (skip duplicate home which we already added)
+        for u in urls:
+            if u == f"{site_base}/":
+                continue
+            sitemap_xml.append(url_entry(u))
+        sitemap_xml.append("</urlset>\n")
+        write_text(os.path.join(base_out, "sitemap.xml"), "".join(sitemap_xml))
+    except Exception as e:
+        log(f"Failed to generate sitemap: {e}")
 
 
 def run_cli() -> None:

@@ -30,10 +30,10 @@
         <div class="header-main">
           <a href="{{ root }}/" class="brand">ChinaXiv Translations</a>
           <div class="header-search">
-            <input type="text" id="header-search-input" placeholder="Search papers..." />
-            <button id="header-search-btn">Search</button>
+            <input type="text" id="header-search-input" placeholder="Search papers..." aria-label="Search papers" />
+            <button id="header-search-btn" aria-label="Run search">Search</button>
           </div>
-          <a href="{{ root }}/donation.html" class="donate-btn">Donate</a>
+          <a href="{{ root }}/donation.html" class="donate-btn" aria-label="Donate to support translations">Donate</a>
         </div>
         {% block header_breadcrumbs %}{% endblock %}
       </div>
