@@ -1,0 +1,14 @@
+::1 - - [08/Oct/2025 23:03:23] "HEAD / HTTP/1.1" 200 -
+::1 - - [08/Oct/2025 23:03:23] "GET / HTTP/1.1" 200 -
+::1 - - [08/Oct/2025 23:05:23] "GET / HTTP/1.1" 200 -
+::1 - - [08/Oct/2025 23:05:23] "GET /assets/style.css?v=1759989682 HTTP/1.1" 200 -
+::1 - - [08/Oct/2025 23:05:23] "GET /assets/pako.min.js?v=1759989682 HTTP/1.1" 200 -
+::1 - - [08/Oct/2025 23:05:23] "GET /assets/site.js?v=1759989682 HTTP/1.1" 200 -
+::1 - - [08/Oct/2025 23:05:23] "GET /search-index.json.gz HTTP/1.1" 200 -
+::1 - - [08/Oct/2025 23:05:23] code 404, message File not found
+::1 - - [08/Oct/2025 23:05:23] "GET /favicon.ico HTTP/1.1" 404 -
+::1 - - [08/Oct/2025 23:19:58] "GET / HTTP/1.1" 200 -
+::1 - - [08/Oct/2025 23:19:58] "GET /assets/style.css?v=1759990482 HTTP/1.1" 200 -
+::1 - - [08/Oct/2025 23:19:58] "GET /assets/pako.min.js?v=1759990482 HTTP/1.1" 200 -
+::1 - - [08/Oct/2025 23:19:58] "GET /assets/site.js?v=1759990482 HTTP/1.1" 200 -
+::1 - - [08/Oct/2025 23:19:58] "GET /search-index.json.gz HTTP/1.1" 200 -
