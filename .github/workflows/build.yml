@@ -13,6 +13,9 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - "**"
 
 concurrency:
   # Separate concurrency groups for push runs that are internal [skip ci] updates
@@ -43,6 +46,7 @@ jobs:
       - name: "Preflight: Validate OpenRouter API key"
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        if: ${{ github.event_name != 'pull_request' }}
         run: |
           set -e
           echo "🔎 Preflight check: validating OPENROUTER_API_KEY"
@@ -51,13 +55,22 @@ jobs:
             echo "❌ OPENROUTER_API_KEY invalid or missing — failing early"
             exit 1
           }
+      - name: "Preflight (PR): Non-fatal environment check"
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          set -e
+          echo "🔎 PR preflight: diagnostics only (no key validation)"
+          python -m src.tools.env_diagnose --check || true
       - name: Run tests (blocking on schedule/manual)
-        if: ${{ github.event_name != 'push' }}
+        if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
         run: pytest -q
       - name: Run tests (non-blocking on push)
         if: ${{ github.event_name == 'push' }}
         continue-on-error: true
         run: pytest -q
+      - name: Skip tests on pull_request
+        if: ${{ github.event_name == 'pull_request' }}
+        run: echo "ℹ️ Skipping tests on PR"
       - name: Build site
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
@@ -68,7 +81,8 @@ jobs:
           set -e
           echo "🚀 Starting build process..."
 
-          SKIP_HARVEST="${{ github.event.inputs.skip_harvest || 'false' }}"
+          # Default to skipping harvest during PR builds
+          SKIP_HARVEST="${{ github.event_name == 'pull_request' && 'true' || (github.event.inputs.skip_harvest || 'false') }}"
 
           if [ "$SKIP_HARVEST" = "false" ]; then
             # Attempt ChinaXiv harvest via BrightData if credentials provided
@@ -126,10 +140,12 @@ jobs:
           
           echo "✅ Build completed successfully!"
       - name: Set up Node.js
+        if: ${{ github.event_name != 'pull_request' }}
         uses: actions/setup-node@v4
         with:
           node-version: '18'
       - name: Deploy to Cloudflare Pages
+        if: ${{ github.event_name != 'pull_request' }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
         run: |
@@ -150,6 +166,7 @@ jobs:
           
           echo "✅ Deployment completed successfully!"
       - name: Persist dedupe state (seen.json)
+        if: ${{ github.event_name != 'pull_request' }}
         run: |
           set -e
           if [ ! -f data/seen.json ]; then
