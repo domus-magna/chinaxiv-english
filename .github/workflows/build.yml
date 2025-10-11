@@ -62,8 +62,11 @@ jobs:
           echo "🔎 PR preflight: diagnostics only (no key validation)"
           python -m src.tools.env_diagnose --check || true
       - name: Run tests (blocking on schedule/manual)
-        if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+        if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (github.event.inputs.skip_harvest || 'false') != 'true') }}
         run: pytest -q
+      - name: Skip tests (manual rebuild-only)
+        if: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.skip_harvest || 'false') == 'true' }}
+        run: echo "ℹ️ Skipping tests on manual rebuild-only (skip_harvest=true)"
       - name: Run tests (non-blocking on push)
         if: ${{ github.event_name == 'push' }}
         continue-on-error: true
