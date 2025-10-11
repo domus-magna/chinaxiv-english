@@ -146,7 +146,7 @@ jobs:
         if: ${{ github.event_name != 'pull_request' }}
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
       - name: Deploy to Cloudflare Pages
         if: ${{ github.event_name != 'pull_request' }}
         env:
