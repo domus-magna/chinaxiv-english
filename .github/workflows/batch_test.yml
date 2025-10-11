@@ -1,0 +1,17 @@
+# Test batch workflow with inputs
+name: Batch Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      batch_size:
+        description: 'Papers per batch'
+        required: true
+        default: '50'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test
+        run: echo "Batch size: ${{ github.event.inputs.batch_size }}"
