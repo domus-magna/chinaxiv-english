@@ -6,7 +6,7 @@ on:
     inputs:
       batch_size:
         description: 'Papers per batch'
-        required: true
+        required: false
         default: '50'
 
 jobs:
