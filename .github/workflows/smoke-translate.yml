@@ -1,0 +1,70 @@
+name: smoke-translate
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Number of papers to translate'
+        required: false
+        default: '20'
+      workers:
+        description: 'Parallel workers'
+        required: false
+        default: '20'
+      month:
+        description: 'Month (YYYYMM) to source records from'
+        required: false
+      deploy:
+        description: 'Deploy site after smoke run'
+        required: false
+        default: 'false'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Validate environment
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          python -m src.tools.env_diagnose --check || true
+          python -m src.tools.env_diagnose --validate || {
+            echo "❌ OPENROUTER_API_KEY invalid or missing"; exit 1; }
+      - name: Run smoke translate
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          set -e
+          LIM=${{ inputs.limit || '20' }}
+          W=${{ inputs.workers || '20' }}
+          M=${{ inputs.month || '' }}
+          DEPLOY=${{ inputs.deploy || 'false' }}
+          EXTRA=""
+          if [ -n "$M" ]; then EXTRA="--month $M"; fi
+          if [ "$DEPLOY" = "true" ]; then DFLAG="--deploy"; else DFLAG=""; fi
+          python scripts/smoke_translate.py --limit "$LIM" --workers "$W" $EXTRA --alert $DFLAG
+      - name: Upload smoke artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-outputs
+          path: |
+            data/selected.json
+            data/translated/*.json
+            data/flagged/*.json
+

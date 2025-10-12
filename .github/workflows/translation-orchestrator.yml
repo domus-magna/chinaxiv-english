@@ -1,0 +1,69 @@
+name: translation-orchestrator
+
+on:
+  workflow_dispatch:
+    inputs:
+      start:
+        description: 'Start month (YYYYMM)'
+        required: true
+      end:
+        description: 'End month (YYYYMM)'
+        required: true
+      parallel:
+        description: 'Concurrent dispatches'
+        required: false
+        default: '3'
+      workers:
+        description: 'Workers per month'
+        required: false
+        default: '20'
+      deploy:
+        description: 'Deploy each month when finished'
+        required: false
+        default: 'true'
+
+jobs:
+  orchestrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Compute months and dispatch backfill jobs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          START: ${{ inputs.start }}
+          END: ${{ inputs.end }}
+          PARALLEL: ${{ inputs.parallel || '3' }}
+          WORKERS: ${{ inputs.workers || '20' }}
+          DEPLOY: ${{ inputs.deploy || 'true' }}
+        run: |
+          set -euo pipefail
+
+          START_MONTH="$START"
+          END_MONTH="$END"
+
+          : > months.txt
+          CUR="${START_MONTH}01"
+          while true; do
+            M=$(date -u -d "${CUR}" +%Y%m)
+            if [ "$M" \> "$END_MONTH" ]; then break; fi
+            echo "$M" >> months.txt
+            CUR=$(date -u -d "${CUR} +1 month" +%Y%m01)
+          done
+
+          echo "Dispatching backfill for months:"
+          cat months.txt
+
+          AUTH="Authorization: Bearer ${GH_TOKEN}"
+          API="https://api.github.com/repos/${REPO}/actions/workflows/backfill.yml/dispatches"
+          REF="${GITHUB_REF_NAME}"
+
+          while read -r MONTH; do
+            echo "→ Dispatch $MONTH"
+            jq -n --arg ref "$REF" --arg month "$MONTH" --arg workers "$WORKERS" --arg deploy "$DEPLOY" '{ref:$ref, inputs:{month:$month, workers:$workers, deploy:$deploy}}' \
+              | curl -sS -X POST "$API" -H "Accept: application/vnd.github+json" -H "$AUTH" -d @- >/dev/null \
+              && echo "  ✓ Dispatched $MONTH" || echo "  ✗ Failed $MONTH"
+          done < months.txt
+
