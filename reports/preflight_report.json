@@ -1,0 +1,34 @@
+{
+  "pass": true,
+  "checks": {
+    "env_vars": {
+      "OPENROUTER_API_KEY": true,
+      "BRIGHTDATA_API_KEY": false,
+      "BRIGHTDATA_ZONE": false
+    },
+    "openrouter_api": {
+      "ok": true
+    },
+    "brightdata": {
+      "available": false,
+      "status_code": null,
+      "error": "BRIGHTDATA_API_KEY not found in shell or .env file"
+    },
+    "binaries": {
+      "tesseract": {
+        "ok": true
+      },
+      "ocrmypdf": {
+        "ok": true
+      },
+      "pandoc": {
+        "ok": false
+      }
+    },
+    "disk": {
+      "ok": true,
+      "free_gb": 543.74,
+      "min_gb": 1.0
+    }
+  }
+}

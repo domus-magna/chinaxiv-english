@@ -1,0 +1,33 @@
+name: Render Validation Gate
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run Render gate
+        run: |
+          set -e
+          python -m src.validators.render_gate
+      - name: Upload Render reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: render-gate-report-${{ github.run_id }}
+          path: |
+            reports/render_report.json
+            reports/render_report.md
+          if-no-files-found: error
+

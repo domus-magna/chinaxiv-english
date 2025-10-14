@@ -8,6 +8,9 @@ from __future__ import annotations
 
 import argparse
 import os
+import json
+import shutil
+import subprocess
 import time
 from typing import Dict, List, Optional
 
@@ -94,6 +97,81 @@ def process_paper(
     # Extract text
     log(f"Extracting text from {paper_id}...")
     paragraphs = extract_from_pdf(pdf_path)
+    total_chars = sum(len(p) for p in paragraphs) if paragraphs else 0
+
+    # OCR detection thresholds (simple heuristic)
+    need_ocr = False
+    DETECT_CHAR_THRESHOLD = 1500  # if less than this many characters, likely scanned
+    if not paragraphs or total_chars < DETECT_CHAR_THRESHOLD:
+        need_ocr = True
+
+    # Record detection report
+    try:
+        report_dir = os.path.join("reports")
+        os.makedirs(report_dir, exist_ok=True)
+        detect_path = os.path.join(report_dir, "ocr_detection_report.json")
+        data = {}
+        if os.path.exists(detect_path):
+            with open(detect_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        data[paper_id] = {
+            "pdf_path": pdf_path,
+            "pre_ocr_chars": total_chars,
+            "need_ocr": bool(need_ocr),
+        }
+        with open(detect_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+    except Exception:
+        pass
+
+    # Run OCR if needed and possible
+    if need_ocr and shutil.which("ocrmypdf") and shutil.which("tesseract"):
+        try:
+            ocr_dir = os.path.join(pdf_dir, "ocr")
+            os.makedirs(ocr_dir, exist_ok=True)
+            ocr_out = os.path.join(ocr_dir, f"{paper_id}.pdf")
+            # Use chi_sim+eng to cover Chinese and English; skip pages with text
+            cmd = [
+                "ocrmypdf",
+                "--skip-text",
+                "--optimize", "0",
+                "--language", "chi_sim+eng",
+                pdf_path,
+                ocr_out,
+            ]
+            log(f"Running OCR for {paper_id}…")
+            subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            # Re-extract
+            paragraphs = extract_from_pdf(ocr_out)
+            post_chars = sum(len(p) for p in paragraphs) if paragraphs else 0
+            # Record execution report
+            try:
+                exec_path = os.path.join(report_dir, "ocr_execution_report.json")
+                exec_data = {}
+                if os.path.exists(exec_path):
+                    with open(exec_path, "r", encoding="utf-8") as f:
+                        exec_data = json.load(f)
+                exec_data[paper_id] = {
+                    "ran_ocr": True,
+                    "ocr_pdf_path": ocr_out,
+                    "pre_ocr_chars": total_chars,
+                    "post_ocr_chars": post_chars,
+                    "improved": post_chars > total_chars,
+                    "improvement": post_chars - total_chars,
+                }
+                with open(exec_path, "w", encoding="utf-8") as f:
+                    json.dump(exec_data, f, indent=2, ensure_ascii=False)
+            except Exception:
+                pass
+
+            # Prefer OCR output if improved
+            if post_chars > total_chars:
+                pdf_path = ocr_out
+                total_chars = post_chars
+            else:
+                log(f"OCR did not improve text extraction for {paper_id}")
+        except Exception as e:
+            log(f"OCR failed for {paper_id}: {e}")
 
     if not paragraphs:
         log(f"No text extracted from {paper_id}")
@@ -101,12 +179,23 @@ def process_paper(
 
     log(f"Extracted {len(paragraphs)} paragraphs from {paper_id}")
 
-    return {
+    result = {
         "pdf_path": pdf_path,
         "paragraphs": paragraphs,
         "num_paragraphs": len(paragraphs),
         "total_chars": sum(len(p) for p in paragraphs),
     }
+
+    # Mirror minimal detection/execution outcome under site/stats for monitoring
+    try:
+        os.makedirs(os.path.join("site", "stats", "validation"), exist_ok=True)
+        # Append/update single-paper info into aggregate files already written above
+        # (no-op here; aggregate reports are maintained earlier)
+        pass
+    except Exception:
+        pass
+
+    return result
 
 
 def batch_download_and_extract(
