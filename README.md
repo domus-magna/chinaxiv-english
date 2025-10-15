@@ -91,6 +91,23 @@ This eliminates API key mismatch issues that previously caused translation failu
 - **Environment health**: `make check-keys` - Validates API key consistency
 - **Auto-fix issues**: `make fix-keys` - Automatically resolves environment mismatches
 
+## Validation Gates & Fixtures
+
+Use the validation gates to guard pipeline quality:
+
+- `python -m src.tools.env_diagnose --preflight`
+- `python -m src.validators.harvest_gate`
+- `python -m src.validators.translation_gate`
+
+When a run starts from a clean working tree, the helper `scripts/prepare_gate_fixtures.py` seeds representative harvest and translation artifacts from `tests/fixtures/` so the gates always exercise non-empty inputs. Run it manually with:
+
+```bash
+source .venv/bin/activate
+python scripts/prepare_gate_fixtures.py
+```
+
+The script copies small sample JSON/PDF files into `data/` only when real artifacts are missing, keeping gate runs deterministic without polluting the repo.
+
 ## Preview
 
 - `python -m http.server -d site 8001`

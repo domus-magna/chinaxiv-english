@@ -58,6 +58,7 @@
 - **Translate**: `python -m src.translate --dry-run`
 - **Render**: `python -m src.render && python -m src.search_index`
 - **Background tasks**: `nohup command &` (see Background Task Guidelines)
+- **Seed validation fixtures**: `python scripts/prepare_gate_fixtures.py` (populates sample harvest/translation artifacts when `data/` is empty so the CI gates never pass on empty input)
 
 ### Troubleshooting
 - **API keys**: `python -m src.tools.env_diagnose --check`

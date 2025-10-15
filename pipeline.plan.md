@@ -63,6 +63,7 @@
 
 ### Stage 1 – Harvest & PDF
 - [x] Schema validator + PDF verification
+- [x] Seed deterministic fixtures for CI gating and document usage
 - [ ] Implement Bright Data retry policy in `harvest_chinaxiv.py` (legacy path)
 - [ ] Persist harvest audit summaries to R2 for cross-run comparison
 
@@ -94,6 +95,7 @@
 
 ### Cross-cutting items
 - [ ] Unit tests for harvest parser variants, OCR detection, translation QA heuristics
+- [x] Basic unit tests for harvest/translation gates (pass/fail scenarios)
 - [ ] Smoke E2E harness translating 2 papers end-to-end inside container
 - [ ] Documentation updates (README + developer guide for new workflows)
 - [ ] Revisit container pinning only if runner provisioning proves flaky; reintroduce image build pipeline at that point
@@ -110,6 +112,7 @@
 8. **Translation gate containerisation** – `.github/workflows/translation-gate.yml` matrix inputs.
 9. **Pipeline orchestrator scaffold** – `.github/workflows/pipeline-orchestrator.yml` (needs polling updates).
 10. **Reports mirrored to site** – `site/stats/validation/harvest_report.json` etc.
+11. **Gate fixtures + tests** – `scripts/prepare_gate_fixtures.py`, CI workflows seed sample data, and unit tests ensure gates fail on empty inputs.
 
 ## Next sprint priorities
 

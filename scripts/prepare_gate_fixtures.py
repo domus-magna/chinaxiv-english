@@ -5,9 +5,10 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
-HARVEST_FIXTURE = Path("tests/fixtures/harvest/records_sample.json")
-HARVEST_PDF_FIXTURE = Path("tests/fixtures/harvest/sample.pdf")
-TRANSLATION_FIXTURE = Path("tests/fixtures/translation/sample_translation.json")
+REPO_ROOT = Path(__file__).resolve().parent.parent
+HARVEST_FIXTURE = REPO_ROOT / "tests/fixtures/harvest/records_sample.json"
+HARVEST_PDF_FIXTURE = REPO_ROOT / "tests/fixtures/harvest/sample.pdf"
+TRANSLATION_FIXTURE = REPO_ROOT / "tests/fixtures/translation/sample_translation.json"
 
 
 def copy_fixture(src: Path, dest: Path) -> None:
@@ -16,7 +17,7 @@ def copy_fixture(src: Path, dest: Path) -> None:
 
 
 def ensure_harvest_fixtures() -> bool:
-    dest_dir = Path("data/records")
+    dest_dir = REPO_ROOT / "data/records"
     dest_dir.mkdir(parents=True, exist_ok=True)
     existing = list(dest_dir.glob("*.json"))
     if existing:
@@ -24,14 +25,14 @@ def ensure_harvest_fixtures() -> bool:
 
     copy_fixture(HARVEST_FIXTURE, dest_dir / HARVEST_FIXTURE.name)
 
-    pdf_dest = Path("data/pdfs/sample.pdf")
+    pdf_dest = REPO_ROOT / "data/pdfs/sample.pdf"
     if not pdf_dest.exists():
         copy_fixture(HARVEST_PDF_FIXTURE, pdf_dest)
     return True
 
 
 def ensure_translation_fixtures() -> bool:
-    dest_dir = Path("data/translated")
+    dest_dir = REPO_ROOT / "data/translated"
     dest_dir.mkdir(parents=True, exist_ok=True)
     existing = list(dest_dir.glob("*.json"))
     if existing:
