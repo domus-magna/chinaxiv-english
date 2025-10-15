@@ -148,6 +148,7 @@ def check_brightdata_access(timeout: int = 10) -> Dict[str, Any]:
             "mode": "render",
             "method": "GET",
             "country": "cn",
+            "format": "json",
         }
         resp = requests.post("https://api.brightdata.com/request", headers=headers, json=payload, timeout=timeout)
         result["status_code"] = resp.status_code
