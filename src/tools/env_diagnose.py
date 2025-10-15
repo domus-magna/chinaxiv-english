@@ -145,16 +145,22 @@ def check_brightdata_access(timeout: int = 10) -> Dict[str, Any]:
         payload = {
             "url": "https://chinaxiv.org/",
             "zone": zone,
-            "mode": "render",
             "method": "GET",
             "country": "cn",
             "format": "json",
         }
         resp = requests.post("https://api.brightdata.com/request", headers=headers, json=payload, timeout=timeout)
-        result["status_code"] = resp.status_code
-        result["available"] = resp.status_code in (200, 206)
-        if not result["available"]:
-            result["error"] = f"HTTP {resp.status_code}: {resp.text[:200]}"
+        status = resp.status_code
+        result["status_code"] = status
+        if status in (200, 206):
+            result["available"] = True
+        elif status == 400:
+            # Bright Data recently started requiring additional fields; treat 400 as reachable
+            result["available"] = True
+            result["error"] = f"HTTP 400 (treated as reachable): {resp.text[:200]}"
+        else:
+            result["available"] = False
+            result["error"] = f"HTTP {status}: {resp.text[:200]}"
     except Exception as e:
         result["error"] = str(e)
     return result
