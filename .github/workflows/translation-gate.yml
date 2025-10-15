@@ -3,36 +3,54 @@ name: Translation Validation Gate
 on:
   workflow_dispatch:
     inputs:
-      runner_type:
-        description: 'Runner type'
+      batch_size:
+        description: 'Papers per batch'
         required: false
-        default: 'ubuntu-latest'
+        default: '100'
+      workers:
+        description: 'Parallel workers'
+        required: false
+        default: '20'
+      matrix_index:
+        description: 'Matrix job index'
+        required: false
+        default: '0'
 
 jobs:
   gate:
-    runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-      - name: Install deps
+
+      - name: Install system packages
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            tesseract-ocr \
+            tesseract-ocr-chi-sim \
+            tesseract-ocr-chi-tra \
+            ghostscript \
+            pngquant \
+            qpdf \
+            unpaper
+
       - name: Validate translated outputs
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          BRIGHTDATA_API_KEY: ${{ secrets.BRIGHTDATA_API_KEY }}
+          BRIGHTDATA_ZONE: ${{ secrets.BRIGHTDATA_ZONE }}
         run: |
           set -e
           python -m src.validators.translation_gate
+          
       - name: Upload translation report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: translation-report-${{ github.run_id }}
+          name: translation-report-${{ github.event.inputs.matrix_index || '0' }}
           path: reports/translation_report.json
-          if-no-files-found: error
-
+          if-no-files-found: ignore
