@@ -3,13 +3,26 @@ from __future__ import annotations
 import glob
 import json
 import os
+import re
+import sys
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import requests
+from bs4 import BeautifulSoup
 
 
-REQUIRED_FIELDS = ["id", "title", "abstract", "pdf_url"]
+REQUIRED_FIELDS = [
+    "id",
+    "title",
+    "abstract",
+    "creators",
+    "subjects",
+    "date",
+    "source_url",
+    "pdf_url",
+]
+USER_AGENT = "chinaxiv-harvest-gate/1.0"
 
 
 @dataclass
@@ -35,38 +48,98 @@ def _load_records(path: str) -> List[Dict[str, Any]]:
         return []
 
 
-def _check_schema(rec: Dict[str, Any]) -> bool:
+def _check_schema(rec: Dict[str, Any]) -> Tuple[bool, List[str]]:
+    errors: List[str] = []
+
     for k in REQUIRED_FIELDS:
         if k not in rec or rec[k] in (None, ""):
-            return False
-    # Basic type sanity
-    if not isinstance(rec["id"], str):
-        return False
-    if not isinstance(rec["title"], str):
-        return False
-    if not isinstance(rec["abstract"], str):
-        return False
-    if not isinstance(rec["pdf_url"], str) or not rec["pdf_url"].startswith("http"):
-        return False
-    return True
+            errors.append(f"Missing field: {k}")
+
+    rid = rec.get("id")
+    if not isinstance(rid, str) or not re.match(r"^chinaxiv-\d{6}\.\d{5}$", rid or ""):
+        errors.append("Invalid id format")
+
+    if not isinstance(rec.get("title"), str):
+        errors.append("Title must be string")
+
+    if not isinstance(rec.get("abstract"), str) or len(rec.get("abstract", "")) < 50:
+        errors.append("Abstract too short")
+
+    creators = rec.get("creators")
+    if not isinstance(creators, list) or not creators:
+        errors.append("Creators must be non-empty list")
+
+    subjects = rec.get("subjects")
+    if not isinstance(subjects, list) or not subjects:
+        errors.append("Subjects must be non-empty list")
+
+    if not isinstance(rec.get("date"), str):
+        errors.append("Date must be string")
+
+    pdf_url = rec.get("pdf_url")
+    if not isinstance(pdf_url, str) or not pdf_url.startswith("http"):
+        errors.append("Invalid pdf_url")
+
+    source_url = rec.get("source_url")
+    if not isinstance(source_url, str) or not source_url.startswith("http"):
+        errors.append("Invalid source_url")
+
+    return (len(errors) == 0, errors)
 
 
-def _check_pdf_head(url: str, timeout: int = 15) -> bool:
+def _discover_pdf_url(source_url: str) -> Optional[str]:
     try:
-        r = requests.head(url, allow_redirects=True, timeout=timeout)
-        if r.status_code >= 400:
-            return False
-        ctype = r.headers.get("content-type", "").lower()
-        # Some servers omit type; allow by size fallback using GET if needed
-        if "pdf" in ctype:
-            return True
-        # Fallback: tiny ranged GET to confirm
-        r2 = requests.get(url, headers={"Range": "bytes=0-0"}, timeout=timeout)
-        if r2.status_code in (200, 206):
-            return True
+        resp = requests.get(source_url, timeout=30, headers={"User-Agent": USER_AGENT})
+        resp.raise_for_status()
+        soup = BeautifulSoup(resp.text, "html.parser")
+        link = soup.find("a", href=re.compile(r"\.(pdf|PDF)(?:$|\?)"))
+        if link and link.get("href"):
+            href = link["href"]
+            if href.startswith("http"):
+                return href
+            return requests.compat.urljoin(source_url, href)
+    except Exception:
+        return None
+    return None
+
+
+def _check_pdf_access(url: str, timeout: int = 30) -> bool:
+    try:
+        with requests.get(
+            url,
+            stream=True,
+            timeout=timeout,
+            allow_redirects=True,
+            headers={"User-Agent": USER_AGENT},
+        ) as resp:
+            resp.raise_for_status()
+            content_type = resp.headers.get("content-type", "").lower()
+            if "pdf" in content_type:
+                return True
+            chunk = next(resp.iter_content(chunk_size=1024), b"")
+            return chunk.startswith(b"%PDF-")
+    except StopIteration:
+        return False
     except Exception:
         return False
-    return False
+
+
+def _resolve_pdf(rec: Dict[str, Any]) -> Tuple[Optional[str], List[str], bool]:
+    issues: List[str] = []
+    pdf_url = rec.get("pdf_url")
+    source_url = rec.get("source_url")
+    if pdf_url and _check_pdf_access(pdf_url):
+        return pdf_url, issues, True
+    if source_url:
+        resolved = _discover_pdf_url(source_url)
+        if resolved and _check_pdf_access(resolved):
+            return resolved, issues, True
+        issues.append("Could not resolve PDF via source page")
+    if pdf_url:
+        issues.append(f"PDF inaccessible: {pdf_url}")
+    else:
+        issues.append("Missing pdf_url")
+    return None, issues, False
 
 
 def run_harvest_gate(records_path: Optional[str] = None, out_dir: str = "reports") -> HarvestGateSummary:
@@ -91,28 +164,36 @@ def run_harvest_gate(records_path: Optional[str] = None, out_dir: str = "reports
     dup_ids = 0
     per_rec: Dict[str, Any] = {}
 
-    for rec in recs:
-        rid = str(rec.get("id", ""))
-        schema_ok = _check_schema(rec)
-        pdf_ok_flag = False
-        if schema_ok and rec.get("pdf_url"):
-            pdf_ok_flag = _check_pdf_head(rec["pdf_url"])  # network optional
+    for idx, rec in enumerate(recs):
+        rid = rec.get("id") or f"idx_{idx}"
+        schema_ok, schema_errors = _check_schema(rec)
+        resolved_url, pdf_issues, pdf_ok_flag = _resolve_pdf(rec)
         if schema_ok:
             schema_pass += 1
+        else:
+            pdf_issues.extend(schema_errors)
         if pdf_ok_flag:
             pdf_ok += 1
+        else:
+            pdf_issues.extend(schema_errors)
         if rid in seen_ids:
             dup_ids += 1
+            pdf_issues.append("Duplicate ID")
         else:
             seen_ids.add(rid)
-        per_rec[rid or f"idx_{len(per_rec)}"] = {
+        per_rec[rid] = {
             "schema": schema_ok,
-            "pdf_ok": pdf_ok_flag,
+            "schema_errors": schema_errors,
+            "pdf": {
+                "pdf_ok": pdf_ok_flag,
+                "resolved_url": resolved_url,
+                "issues": pdf_issues,
+            },
         }
 
     # Thresholds: schema >= 95%, pdf_ok >= 98% of those with schema_ok
     schema_rate = (schema_pass / total) * 100 if total else 0.0
-    pdf_rate = (pdf_ok / max(schema_pass, 1)) * 100 if total else 0.0
+    pdf_rate = (pdf_ok / max(schema_pass, 1)) * 100 if schema_pass else 0.0
     pass_threshold = (schema_rate >= 95.0) and (pdf_rate >= 98.0) and (dup_ids == 0)
 
     summary = {
@@ -125,8 +206,12 @@ def run_harvest_gate(records_path: Optional[str] = None, out_dir: str = "reports
         "pdf_rate": round(pdf_rate, 2),
         "pass": pass_threshold,
     }
+    detail = {
+        "summary": summary,
+        "results": per_rec,
+    }
     with open(report_path, "w", encoding="utf-8") as f:
-        json.dump({"summary": summary, "results": per_rec}, f, indent=2, ensure_ascii=False)
+        json.dump(detail, f, indent=2, ensure_ascii=False)
     with open(report_md, "w", encoding="utf-8") as f:
         f.write("\n".join([
             "# Harvest Report",
@@ -151,7 +236,16 @@ def run_harvest_gate(records_path: Optional[str] = None, out_dir: str = "reports
 
 
 if __name__ == "__main__":
-    s = run_harvest_gate()
-    print(json.dumps({"total": s.total, "schema_pass": s.schema_pass, "pdf_ok": s.pdf_ok, "dup_ids": s.dup_ids, "pass": s.pass_threshold_met}))
-
+    summary = run_harvest_gate()
+    print(json.dumps({
+        "total": summary.total,
+        "schema_pass": summary.schema_pass,
+        "pdf_ok": summary.pdf_ok,
+        "dup_ids": summary.dup_ids,
+        "pass": summary.pass_threshold_met,
+    }))
+    should_fail = (summary.total == 0) or not summary.pass_threshold_met
+    if should_fail:
+        sys.stderr.write("Harvest gate failed: no records processed or thresholds not met.\n")
+        sys.exit(1)
 

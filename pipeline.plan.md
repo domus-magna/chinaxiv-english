@@ -38,6 +38,7 @@
   - Automatically resolves PDFs from landing pages when the saved URL fails (`BeautifulSoup` + relative link handling).
   - Streams PDF head bytes to confirm validity and records resolved URLs and issue lists per paper.
   - Outputs structured `reports/harvest_report.json|md` and mirrors summary to `site/stats/validation/harvest_report.json`.
+  - Gate now hard-fails when no records are present or thresholds are missed, eliminating false greens on empty input.
 - `harvest-gate.yml`
   - Runner-based job triggers `python -m src.validators.harvest_gate` (optional `records_path` input) after installing OCR tooling, then uploads artifacts.
 - **Outcome**: Latest audits for 2025-02 BrightData harvest show 0% PDF failures; remaining schema misses are limited to old IA identifiers lacking full metadata.
@@ -45,7 +46,7 @@
 ### Translation gating groundwork (Stage 3)
 - `translation-gate.yml`
   - Extended with workflow inputs (`batch_size`, `workers`, `matrix_index`) and provisions OCR tooling directly on the runner prior to executing the validator.
-  - Currently reruns validator on the runner; gating thresholds to be tightened once queue hardening completes.
+  - Translation gate now fails fast if no translated artifacts exist or QA flags any record, preventing empty-pass scenarios.
 - Translation queue hardening is WIP: `data/cloud_jobs.json` inspected; need resumable workers + cost tracking adjustments.
 
 ### Reporting & artifacts
