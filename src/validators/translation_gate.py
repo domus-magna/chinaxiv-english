@@ -39,10 +39,10 @@ def run_translation_gate(output_path: str = "reports/translation_report.json") -
                 "chinese_ratio": res.chinese_ratio,
                 "flagged_fields": res.flagged_fields,
             }
-                if res.status.value == "pass":
-                    passed += 1
-                else:
-                    flagged += 1
+            if res.status.value == "pass":
+                passed += 1
+            else:
+                flagged += 1
         except Exception as e:
             results[os.path.basename(fp)] = {"error": str(e)}
             flagged += 1
@@ -62,4 +62,3 @@ if __name__ == "__main__":
     if should_fail:
         sys.stderr.write("Translation gate failed: no translations processed or QA flagged items.\n")
         sys.exit(1)
-

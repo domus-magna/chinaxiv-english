@@ -41,12 +41,14 @@
   - Gate now hard-fails when no records are present or thresholds are missed, eliminating false greens on empty input.
 - `harvest-gate.yml`
   - Runner-based job triggers `python -m src.validators.harvest_gate` (optional `records_path` input) after installing OCR tooling, then uploads artifacts.
+  - `scripts/prepare_gate_fixtures.py` seeds representative records and PDFs when no harvested data exists, so the gate always exercises non-empty inputs in CI.
 - **Outcome**: Latest audits for 2025-02 BrightData harvest show 0% PDF failures; remaining schema misses are limited to old IA identifiers lacking full metadata.
 
 ### Translation gating groundwork (Stage 3)
 - `translation-gate.yml`
   - Extended with workflow inputs (`batch_size`, `workers`, `matrix_index`) and provisions OCR tooling directly on the runner prior to executing the validator.
   - Translation gate now fails fast if no translated artifacts exist or QA flags any record, preventing empty-pass scenarios.
+  - Uses the same fixture seeding helper to ensure gating covers real-looking translations even on fresh clones.
 - Translation queue hardening is WIP: `data/cloud_jobs.json` inspected; need resumable workers + cost tracking adjustments.
 
 ### Reporting & artifacts

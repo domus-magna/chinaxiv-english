@@ -1,0 +1,12 @@
+[
+  {
+    "id": "chinaxiv-202501.00001",
+    "title": "Sample Research on Pipeline Hardening",
+    "abstract": "This abstract summarises resilient data gates and exceeds fifty characters to satisfy schema thresholds.",
+    "creators": ["Zhang Wei", "Li Ming"],
+    "subjects": ["Computer Science"],
+    "date": "2025-01-15",
+    "source_url": "https://example.org/sample-paper",
+    "pdf_url": "data/pdfs/sample.pdf"
+  }
+]

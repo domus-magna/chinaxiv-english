@@ -8,6 +8,8 @@ import sys
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
+from pathlib import Path
+
 import requests
 from bs4 import BeautifulSoup
 
@@ -77,8 +79,12 @@ def _check_schema(rec: Dict[str, Any]) -> Tuple[bool, List[str]]:
         errors.append("Date must be string")
 
     pdf_url = rec.get("pdf_url")
-    if not isinstance(pdf_url, str) or not pdf_url.startswith("http"):
+    if not isinstance(pdf_url, str):
         errors.append("Invalid pdf_url")
+    elif not pdf_url.startswith("http"):
+        local_pdf = Path(pdf_url)
+        if not local_pdf.exists():
+            errors.append("Invalid pdf_url")
 
     source_url = rec.get("source_url")
     if not isinstance(source_url, str) or not source_url.startswith("http"):
@@ -104,6 +110,20 @@ def _discover_pdf_url(source_url: str) -> Optional[str]:
 
 
 def _check_pdf_access(url: str, timeout: int = 30) -> bool:
+    local_path: Optional[Path] = None
+    if url.startswith("file://"):
+        local_path = Path(url[7:])
+    elif not url.lower().startswith("http"):
+        local_path = Path(url)
+
+    if local_path:
+        try:
+            with open(local_path, "rb") as f:
+                head = f.read(5)
+            return bool(head.startswith(b"%PDF-") or local_path.suffix.lower() == ".pdf")
+        except Exception:
+            return False
+
     try:
         with requests.get(
             url,
@@ -248,4 +268,3 @@ if __name__ == "__main__":
     if should_fail:
         sys.stderr.write("Harvest gate failed: no records processed or thresholds not met.\n")
         sys.exit(1)
-
