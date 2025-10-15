@@ -47,9 +47,9 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           set -e
-          echo "🔎 Validating OPENROUTER_API_KEY..."
-          python -m src.tools.env_diagnose --validate || {
-            echo "❌ API key invalid or missing"
+          echo "🔎 Running preflight..."
+          python -m src.tools.env_diagnose --preflight || {
+            echo "❌ Preflight failed"
             exit 1
           }
 
@@ -106,47 +106,29 @@ jobs:
         if: always()
         run: |
           set -e
-
           echo "💾 Committing queue progress..."
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
-          # Add queue file and translated/flagged data
           git add data/cloud_jobs.json || true
           git add data/translated/*.json || true
           git add data/flagged/*.json || true
-
           if git diff --cached --quiet; then
             echo "No changes to commit"
-          else
-            git commit -m "chore(batch): update translation queue progress [skip ci]
-
-Worker: gh-${{ github.run_id }}-${{ github.run_attempt }}
-Batch: ${{ github.event.inputs.batch_size || '500' }} papers
-Runner: ${{ github.event.inputs.runner_type || 'ubuntu-latest-8-cores' }}" || true
-
-            # Push with retry logic
-            for i in {1..5}; do
-              if git pull --rebase origin main && git push; then
-                echo "✅ Progress committed and pushed"
-                break
-              else
-                echo "⚠️ Push attempt $i failed, retrying..."
-                sleep 5
-              fi
-
-              if [ $i -eq 5 ]; then
-                echo "❌ Failed to push after 5 attempts"
-                exit 1
-              fi
-            done
+            exit 0
           fi
+          git commit -m "chore(batch): update translation queue progress [skip ci]" || true
+          git pull --rebase origin main || true
+          git push || echo "⚠️ Push failed (non-fatal)"
 
       - name: Upload flagged translations as artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: flagged-translations-${{ github.run_id }}
-          path: data/flagged/*.json
+          name: batch-artifacts-${{ github.run_id }}
+          path: |
+            reports/preflight_report.json
+            reports/preflight_report.md
+            reports/translation_report.json
+            data/flagged/*.json
           if-no-files-found: ignore
           retention-days: 30

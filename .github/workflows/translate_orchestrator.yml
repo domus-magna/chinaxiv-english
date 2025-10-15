@@ -99,7 +99,7 @@ jobs:
             echo "🔄 Starting batch $batch_count..."
 
             # Trigger batch workflow
-            gh workflow run translate_batch.yml \
+            gh workflow run batch_translate.yml \
               -f batch_size="$BATCH_SIZE" \
               -f workers="$WORKERS" \
               -f runner_type="$RUNNER_TYPE" || {

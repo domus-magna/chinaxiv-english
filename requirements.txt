@@ -9,6 +9,7 @@ python-dateutil==2.9.0.post0
 pdfminer.six==20240706
 markdown==3.7
 PySocks==1.7.1
+ocrmypdf==16.8.0
 
 # Dev / Test
 pytest==8.3.3

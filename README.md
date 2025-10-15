@@ -66,10 +66,30 @@ Visit our [donation page](https://chinaxiv-english.pages.dev/donation.html) for 
 
 Cost tracking is estimated via crude token counts and `config.yaml` pricing.
 
+### Environment Management
+
+**The `.env` file is the single source of truth for API keys.** The system:
+
+- ✅ Validates consistency between shell environment and `.env` file
+- ✅ Provides clear instructions for fixing mismatches
+- ✅ Auto-fixes current session environment when possible
+- ✅ Prevents operations when environment is unhealthy
+
+**Commands:**
+- `make check-keys` - Check for API key mismatches
+- `make fix-keys` - Auto-fix environment issues (current session)
+- `make ensure-env` - Validate environment before operations
+
+**To fix mismatches:** `source .env` or restart your shell.
+
+This eliminates API key mismatch issues that previously caused translation failures.
+
 ## Health Checks
 
 - Quick checks: `python -m src.health --skip-openrouter` or `scripts/health.sh`
 - OpenRouter check requires `OPENROUTER_API_KEY`.
+- **Environment health**: `make check-keys` - Validates API key consistency
+- **Auto-fix issues**: `make fix-keys` - Automatically resolves environment mismatches
 
 ## Preview
 

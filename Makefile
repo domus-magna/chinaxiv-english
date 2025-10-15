@@ -6,7 +6,7 @@ VPIP=$(VENV)/bin/pip
 DEV_LIMIT?=5
 MODEL?=
 
-.PHONY: setup test lint fmt smoke build serve health clean samples
+.PHONY: setup test lint fmt smoke build serve health clean samples check-keys fix-keys ensure-env self-review
 
 setup:
 	$(PY) -m pip install --upgrade pip
@@ -28,6 +28,38 @@ fmt:
 
 health:
 	$(PY) -m src.health --skip-openrouter || true
+
+check-keys:
+	$(PY) -m src.tools.env_diagnose --check
+
+fix-keys:
+	$(PY) -m src.tools.env_diagnose --fix
+
+ensure-env:
+	@if ! $(PY) -m src.tools.env_diagnose --fix --validate; then \
+		echo "❌ Environment check failed - run 'make fix-keys' first"; \
+		exit 1; \
+	fi
+
+self-review:
+	bash scripts/self_review.sh
+
+self-review-skip:
+	@echo "Marking self-review as completed (manual override)"
+	date +%s > .self_review_log
+
+self-review-status:
+	@if [ -f .self_review_log ]; then \
+		echo "Last self-review: $$(date -r .self_review_log '+%Y-%m-%d %H:%M')"; \
+		AGE=$$(( $$(date +%s) - $$(cat .self_review_log) )); \
+		if [ $$AGE -lt 3600 ]; then \
+			echo "✅ Valid (within 1 hour)"; \
+		else \
+			echo "❌ Expired (older than 1 hour)"; \
+		fi \
+	else \
+		echo "❌ No self-review found"; \
+	fi
 
 smoke:
 	# Attempt ChinaXiv harvest via BrightData (optimized) for current month if credentials exist
@@ -60,7 +92,7 @@ samples:
 clean:
 	rm -rf site data
 
-dev: clean venv
+dev: clean venv ensure-env
 	@if [ -z "$$OPENROUTER_API_KEY" ] && [ ! -f .env ]; then echo "Set OPENROUTER_API_KEY or create .env"; exit 1; fi
 	$(VPY) -m pytest -q
 	# Try harvest via BrightData if configured

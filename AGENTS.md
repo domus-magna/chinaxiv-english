@@ -1,37 +1,21 @@
+# 🚨 CRITICAL: USE BD AT START OF EVERY TASK! 🚨
+#
+# BEFORE YOU DO ANYTHING ELSE - STOP AND RUN: `bd ready`
+# This shows you EXACTLY what to work on next. Dependencies matter!
+# Don't guess - let bd tell you what's actually ready. This prevents:
+# ❌ Wasted time on blocked tasks
+# ❌ Missing critical dependencies
+# ❌ Context switching chaos
+# ✅ Crystal clear priorities
+# ✅ Smooth dependency flow
+# ✅ Organized, predictable progress
+#
+# Make this your unbreakable habit: TASK → `bd ready` → WORK → `bd update`
+# ======================================================================
+#
 # Repository Guidelines
 
-## Project Structure & Module Organization
-- Root: docs/PRD.md (product spec), README.md.
-- Source: `src/` (e.g., `harvest_oai.py`, `licenses.py`, `translate.py`, `render.py`, `search_index.py`, `utils.py`).
-- Data: `data/` (e.g., `raw_xml/`, `seen.json`). Do not commit secrets or large artifacts.
-- Site output: `site/` (static HTML, assets, search-index.json).
-- Assets: `assets/` (CSS, JS, logos, MathJax, MiniSearch/Lunr).
-
-## Build, Test, and Development Commands
-- Setup env: `python -m venv .venv && source .venv/bin/activate`
-- Install deps: `pip install -r requirements.txt`
-- Run pipeline (local smoke):
-  - Harvest (BrightData, optimized): `python -m src.harvest_chinaxiv_optimized --month $(date -u +"%Y%m")`
-  - Translate: `python -m src.translate --dry-run`
-  - Render + index: `python -m src.render && python -m src.search_index`
-- Preview site: `python -m http.server -d site 8001`
-- CI: Nightly GitHub Actions builds and deploys `site/` to Pages (see PRD).
-- Note: Internet Archive approach is removed. Default harvesting uses BrightData (set `BRIGHTDATA_API_KEY` and `BRIGHTDATA_ZONE`).
-
-### Background Task Guidelines
-- **Always run long-running tasks in the background** to avoid blocking the terminal
-- Use `&` to run commands in background: `command &`
-- For interactive sessions, use `nohup` for persistent background tasks: `nohup command &`
-- Monitor background jobs with `jobs` command
-- Bring background jobs to foreground with `fg`
-- Examples:
-  - Formatting samples: `python -m src.tools.formatting_compare --count 5 &`
-  - Translation pipeline: `python -m src.translate &`
-- Site server: `python -m http.server -d site 8001 &`
-
-## Agent Response Style & Depth (Required)
-
-This project requires agents to communicate in full, detailed prose that prioritizes clarity over brevity. Use complete sentences and cohesive paragraphs to explain decisions, call out assumptions, and describe tradeoffs with practical impact. Bulleted summaries are welcome for scanability, but they must be supported by descriptive prose. The goal is for a teammate to understand not only what will be done, but why it is the right choice given our constraints.
+## 🎯 Critical Development Philosophy (Read First!)
 
 ### Simplicity-First Design Philosophy (Critical)
 
@@ -59,6 +43,40 @@ This project requires agents to communicate in full, detailed prose that priorit
 - The solution is proven to be necessary through real-world usage
 - The complexity is isolated and doesn't affect other parts of the system
 
+## 📋 Essential Commands (Quick Reference)
+
+### Daily Development Workflow
+- **Start work**: `bd ready` (check what tasks are unblocked)
+- **Environment**: `python -m venv .venv && source .venv/bin/activate`
+- **Install deps**: `pip install -r requirements.txt`
+- **Run tests**: `python -m pytest tests/ -v`
+- **Self-review**: `make self-review` (run before marking tasks complete)
+- **Local preview**: `python -m http.server -d site 8001`
+
+### Pipeline Operations
+- **Harvest**: `python -m src.harvest_chinaxiv_optimized --month $(date -u +"%Y%m")`
+- **Translate**: `python -m src.translate --dry-run`
+- **Render**: `python -m src.render && python -m src.search_index`
+- **Background tasks**: `nohup command &` (see Background Task Guidelines)
+
+### Troubleshooting
+- **API keys**: `python -m src.tools.env_diagnose --check`
+- **Check status**: `python scripts/monitor.py`
+- **View logs**: `tail -f data/*.log`
+
+## 🏗️ Project Structure & Module Organization
+- Root: docs/PRD.md (product spec), README.md.
+- Source: `src/` (e.g., `harvest_oai.py`, `licenses.py`, `translate.py`, `render.py`, `search_index.py`, `utils.py`).
+- Data: `data/` (e.g., `raw_xml/`, `seen.json`). Do not commit secrets or large artifacts.
+- Site output: `site/` (static HTML, assets, search-index.json).
+- Assets: `assets/` (CSS, JS, logos, MathJax, MiniSearch/Lunr).
+
+## Agent Communication Standards
+
+### Response Style & Depth (Required)
+
+This project requires agents to communicate in full, detailed prose that prioritizes clarity over brevity. Use complete sentences and cohesive paragraphs to explain decisions, call out assumptions, and describe tradeoffs with practical impact. Bulleted summaries are welcome for scanability, but they must be supported by descriptive prose. The goal is for a teammate to understand not only what will be done, but why it is the right choice given our constraints.
+
 **Implementation Guidelines:**
 - Start with the simplest possible solution
 - Add complexity only when the simple solution fails
@@ -66,37 +84,43 @@ This project requires agents to communicate in full, detailed prose that priorit
 - Provide clear rollback paths for any complex features
 - Test simple solutions thoroughly before considering complexity
 
-What to include in most responses:
+**Self-Review Process (Required):**
+Before marking any task as complete, run `make self-review` to apply structured overengineering prevention:
+- Review solutions for unnecessary complexity
+- Identify simpler approaches that solve 90% of the problem
+- Check for potential bugs and edge cases
+- Look for optimization opportunities
+- Validate against simplicity principles
 
-1) Context and assumptions
-   - Briefly restate the problem in your own words.
-   - List any assumptions, constraints, or prerequisites that shape the solution (e.g., cost ceilings, CI limits, data availability, external API quotas).
+**Automatic Trigger:**
+The self-review process is automatically enforced via git pre-push hooks:
+- Runs before `git push` if self-review hasn't been completed in the last hour
+- Prompts to run self-review if needed, or allows skipping for CI/CD
+- Use `make self-review-status` to check if review is current
+- Use `make self-review-skip` for manual override when needed
 
-2) Options considered with tradeoff analysis
-   - Present realistic alternatives (including “do nothing” when applicable).
-   - For each option, explain pros and cons across: correctness/completeness, performance, cost, reliability, maintainability, operational complexity, and risk.
-   - Call out edge cases, failure modes, and how we would monitor/mitigate them.
+**CI/CD Integration:**
+For automated systems, use: `./scripts/git-push-ci.sh` to skip self-review checks
 
-3) Clear recommendation and rationale
-   - State your recommended option and why it best fits our goals.
-   - Note what would change the decision (decision gates) and how to reverse it (rollback/escape hatch) if needed.
+This process catches overengineering before it becomes technical debt.
 
-4) Concrete next steps
-   - Provide specific commands, files to edit, and checkpoints for verification.
-   - For any long-running activity, explicitly run it in the background and show how to monitor it (see Background Task Guidelines above).
+**What to include in most responses:**
 
-When to be brief:
-   - If the user explicitly requests a short or one-line answer, comply but include a single sentence acknowledging key tradeoffs or note that no material tradeoffs exist for the action.
+1) **Context and assumptions** - Briefly restate the problem in your own words and list any assumptions, constraints, or prerequisites that shape the solution (e.g., cost ceilings, CI limits, data availability, external API quotas).
 
-Formatting guidance (how to write):
-   - Prefer paragraphs for explanation; use bullets to summarize or enumerate choices.
-   - Reference concrete file paths, scripts, and commands (e.g., `src/harvest_chinaxiv_optimized.py`, `make dev`).
-   - Avoid unexplained jargon and shorthand. If you introduce a term (e.g., “smart mode”), define it and explain why it exists.
-   - If you’re changing defaults or behavior, describe impacts on CI, cost, and developer workflow.
+2) **Options considered with tradeoff analysis** - Present realistic alternatives (including "do nothing" when applicable). For each option, explain pros and cons across: correctness/completeness, performance, cost, reliability, maintainability, operational complexity, and risk. Call out edge cases, failure modes, and how we would monitor/mitigate them.
 
-Example: harvesting strategy decision (illustrative)
+3) **Clear recommendation and rationale** - State your recommended option and why it best fits our goals. Note what would change the decision (decision gates) and how to reverse it (rollback/escape hatch) if needed.
 
-“Optimized mode” (`src/harvest_chinaxiv_optimized.py`) combines homepage parsing with binary search to determine the actual ID range per month, then scrapes only valid IDs. This delivers high completeness and predictable behavior and is our default for nightly runs and local smoke. “Smart mode” (`src/harvest_chinaxiv_smart.py`) remains available as an ad‑hoc tool for quick tests, but it is not the default and may miss late backfills or irregular ID gaps. Rollback is trivial: adjust the harvester used in CI or scripts to point back to `harvest_chinaxiv_smart.py` if needed.
+4) **Concrete next steps** - Provide specific commands, files to edit, and checkpoints for verification. For any long-running activity, explicitly run it in the background and show how to monitor it (see Background Task Guidelines).
+
+**When to be brief:** If the user explicitly requests a short or one-line answer, comply but include a single sentence acknowledging key tradeoffs or note that no material tradeoffs exist for the action.
+
+**Formatting guidance:**
+- Prefer paragraphs for explanation; use bullets to summarize or enumerate choices.
+- Reference concrete file paths, scripts, and commands (e.g., `src/harvest_chinaxiv_optimized.py`, `make dev`).
+- Avoid unexplained jargon and shorthand. If you introduce a term (e.g., "smart mode"), define it and explain why it exists.
+- If you're changing defaults or behavior, describe impacts on CI, cost, and developer workflow.
 
 
 ## Coding Style & Naming Conventions

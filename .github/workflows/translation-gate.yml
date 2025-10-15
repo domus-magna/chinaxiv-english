@@ -1,0 +1,38 @@
+name: Translation Validation Gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner_type:
+        description: 'Runner type'
+        required: false
+        default: 'ubuntu-latest'
+
+jobs:
+  gate:
+    runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Validate translated outputs
+        run: |
+          set -e
+          python -m src.validators.translation_gate
+      - name: Upload translation report
+        uses: actions/upload-artifact@v4
+        with:
+          name: translation-report-${{ github.run_id }}
+          path: reports/translation_report.json
+          if-no-files-found: error
+

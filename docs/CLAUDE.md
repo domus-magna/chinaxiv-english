@@ -1,3 +1,18 @@
+# 🚨 CRITICAL: USE BD AT START OF EVERY TASK! 🚨
+#
+# BEFORE YOU DO ANYTHING ELSE - STOP AND RUN: `bd ready`
+# This shows you EXACTLY what to work on next. Dependencies matter!
+# Don't guess - let bd tell you what's actually ready. This prevents:
+# ❌ Wasted time on blocked tasks
+# ❌ Missing critical dependencies
+# ❌ Context switching chaos
+# ✅ Crystal clear priorities
+# ✅ Smooth dependency flow
+# ✅ Organized, predictable progress
+#
+# Make this your unbreakable habit: TASK → `bd ready` → WORK → `bd update`
+# ======================================================================
+#
 # Claude Development Guide
 
 ## Quick Start

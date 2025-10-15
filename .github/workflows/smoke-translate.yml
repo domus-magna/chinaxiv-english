@@ -29,6 +29,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: true
+          lfs: true
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -48,6 +49,8 @@ jobs:
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          BRIGHTDATA_API_KEY: ${{ secrets.BRIGHTDATA_API_KEY }}
+          BRIGHTDATA_ZONE: ${{ secrets.BRIGHTDATA_ZONE }}
         run: |
           set -e
           LIM=${{ inputs.limit || '20' }}
@@ -56,6 +59,15 @@ jobs:
           DEPLOY=${{ inputs.deploy || 'false' }}
           EXTRA=""
           if [ -n "$M" ]; then EXTRA="--month $M"; fi
+          # If a month is provided but no records are present, try harvesting that month.
+          if [ -n "$M" ] && [ ! -f "data/records/chinaxiv_${M}.json" ]; then
+            if [ -n "${BRIGHTDATA_API_KEY}" ] && [ -n "${BRIGHTDATA_ZONE}" ]; then
+              echo "No records for $M; harvesting via BrightData…"
+              python -m src.harvest_chinaxiv_optimized --month "$M" || echo "Harvest failed; proceeding without"
+            else
+              echo "No records for $M and no BrightData creds; proceeding without harvest"
+            fi
+          fi
           if [ "$DEPLOY" = "true" ]; then DFLAG="--deploy"; else DFLAG=""; fi
           python scripts/smoke_translate.py --limit "$LIM" --workers "$W" $EXTRA --alert $DFLAG
       - name: Upload smoke artifacts

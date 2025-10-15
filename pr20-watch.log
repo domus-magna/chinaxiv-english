@@ -2,3 +2,7 @@
 [2025-10-10T22:52:24Z] PR#20 updated: comments=11, reviews=2, inline=2; latestPR=2025-10-10T22:49:34Z, latestInline=2025-10-10T20:52:19Z; CI=completed/failure (feat(item): arXiv-style paper page, canonical/OG meta, /abs alias) @ 2025-10-10T22:49:46Z
 [2025-10-10T22:56:44Z] Starting watcher for PR #20 (domus-magna/chinaxiv-english branch=site-polish-implementation)
 [2025-10-10T23:02:30Z] PR#20 updated: comments=11, reviews=2, inline=2; latestPR=2025-10-10T22:49:34Z, latestInline=2025-10-10T20:52:19Z; CI=in_progress/n/a (feat(item): arXiv-style paper page, canonical/OG meta, /abs alias) @ 2025-10-10T23:02:24Z
+[2025-10-14T07:08:28Z] PR#20 updated: comments=0, reviews=0, inline=2; latestPR=n/a, latestInline=2025-10-10T20:52:19Z; CI=completed/failure (test: add minimal workflow_dispatch test) @ 2025-10-11T01:33:56Z
+[2025-10-14T07:08:28Z] PR#20 updated: comments=0, reviews=0, inline=2; latestPR=n/a, latestInline=2025-10-10T20:52:19Z; CI=completed/failure (test: add minimal workflow_dispatch test) @ 2025-10-11T01:33:56Z
+[2025-10-14T11:33:43Z] PR#20 updated: comments=11, reviews=2, inline=2; latestPR=2025-10-10T22:49:34Z, latestInline=2025-10-10T20:52:19Z; CI=completed/failure (test: add minimal workflow_dispatch test) @ 2025-10-11T01:33:56Z
+[2025-10-14T11:33:43Z] PR#20 updated: comments=11, reviews=2, inline=2; latestPR=2025-10-10T22:49:34Z, latestInline=2025-10-10T20:52:19Z; CI=completed/failure (test: add minimal workflow_dispatch test) @ 2025-10-11T01:33:56Z
