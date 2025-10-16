@@ -13,6 +13,11 @@
 # Make this your unbreakable habit: TASK → `bd ready` → WORK → `bd update`
 # ======================================================================
 #
+# 📣 Non-negotiable BD Workflow (no exceptions)
+# - Run `bd ready` before touching any file. If it reports a block, stop—pushing forward creates rework.
+# - Run `bd update` the moment you finish so the next agent inherits fresh context.
+# - We log BD misses; repeat offenders trigger remediation because they break dependency planning and waste API credits.
+#
 # Repository Guidelines
 
 ## 🎯 Critical Development Philosophy (Read First!)
@@ -58,6 +63,7 @@
 - **Translate**: `python -m src.translate --dry-run`
 - **Render**: `python -m src.render && python -m src.search_index`
 - **Background tasks**: `nohup command &` (see Background Task Guidelines)
+- **Seed validation fixtures**: `python scripts/prepare_gate_fixtures.py` (populates sample harvest/translation artifacts when `data/` is empty so the CI gates never pass on empty input)
 
 ### Troubleshooting
 - **API keys**: `python -m src.tools.env_diagnose --check`

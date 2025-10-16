@@ -24,7 +24,7 @@ def write_json(path: str, data: Any) -> None:
         data: Data to write
     """
     ensure_dir(os.path.dirname(path))
-    tmp = path + ".tmp"
+    tmp = str(path) + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
     os.replace(tmp, path)

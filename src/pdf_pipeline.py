@@ -20,11 +20,16 @@ from .config import get_proxies
 from .body_extract import extract_from_pdf
 from .utils import log, read_json, write_json
 
+try:
+    import fcntl  # type: ignore[attr-defined]
+except ImportError:  # pragma: no cover
+    fcntl = None  # type: ignore
+
 
 @retry(wait=wait_exponential(min=1, max=10), stop=stop_after_attempt(3))
 def download_pdf(url: str, output_path: str) -> bool:
     """
-    Download a PDF from a URL.
+    Download a PDF from a URL with validation.
 
     Args:
         url: PDF URL
@@ -47,6 +52,18 @@ def download_pdf(url: str, output_path: str) -> bool:
         resp = session.get(url, **kwargs)
         resp.raise_for_status()
 
+        # Validate PDF content
+        content_type = resp.headers.get('content-type', '').lower()
+        if 'pdf' not in content_type and not resp.content.startswith(b'%PDF-'):
+            log(f"Invalid PDF content type for {url}: {content_type}")
+            return False
+
+        # Check file size (minimum 1KB)
+        content_length = len(resp.content)
+        if content_length < 1024:
+            log(f"PDF too small for {url}: {content_length} bytes")
+            return False
+
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
         with open(output_path, "wb") as f:
@@ -54,6 +71,12 @@ def download_pdf(url: str, output_path: str) -> bool:
                 if not chunk:
                     continue
                 f.write(chunk)
+
+        # Verify downloaded file
+        if os.path.getsize(output_path) < 1024:
+            log(f"Downloaded PDF too small: {output_path}")
+            os.remove(output_path)
+            return False
 
         return True
     except Exception as e:
@@ -64,6 +87,38 @@ def download_pdf(url: str, output_path: str) -> bool:
 def fix_pdf_url(pdf_url: str, paper_id: str) -> str:
     """Return PDF URL unchanged (no IA-specific rewriting)."""
     return pdf_url
+
+
+def _write_ocr_record(report_dir: str, paper_id: str, record: Dict[str, Any]) -> None:
+    """Persist OCR detection/execution details with coarse file locking."""
+    report_path = os.path.join(report_dir, "ocr_report.json")
+    os.makedirs(report_dir, exist_ok=True)
+    fh = open(report_path, "a+", encoding="utf-8")
+    try:
+        if fcntl:
+            fcntl.flock(fh, fcntl.LOCK_EX)
+        fh.seek(0)
+        raw = fh.read()
+        data: Dict[str, Any] = {}
+        if raw:
+            try:
+                data = json.loads(raw)
+            except json.JSONDecodeError:
+                log(f"OCR report malformed; resetting {report_path}")
+                data = {}
+        data[paper_id] = record
+        fh.seek(0)
+        fh.truncate()
+        json.dump(data, fh, indent=2, ensure_ascii=False)
+        fh.flush()
+        os.fsync(fh.fileno())
+    finally:
+        if fcntl:
+            try:
+                fcntl.flock(fh, fcntl.LOCK_UN)
+            except OSError:
+                pass
+        fh.close()
 
 
 def process_paper(
@@ -105,24 +160,18 @@ def process_paper(
     if not paragraphs or total_chars < DETECT_CHAR_THRESHOLD:
         need_ocr = True
 
-    # Record detection report
-    try:
-        report_dir = os.path.join("reports")
-        os.makedirs(report_dir, exist_ok=True)
-        detect_path = os.path.join(report_dir, "ocr_detection_report.json")
-        data = {}
-        if os.path.exists(detect_path):
-            with open(detect_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-        data[paper_id] = {
-            "pdf_path": pdf_path,
-            "pre_ocr_chars": total_chars,
-            "need_ocr": bool(need_ocr),
-        }
-        with open(detect_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-    except Exception:
-        pass
+    report_dir = os.path.join("reports")
+    pre_ocr_chars = total_chars
+    ocr_record: Dict[str, Any] = {
+        "pdf_path": pdf_path,
+        "need_ocr": bool(need_ocr),
+        "pre_ocr_chars": pre_ocr_chars,
+        "ran_ocr": False,
+        "ocr_pdf_path": None,
+        "post_ocr_chars": pre_ocr_chars,
+        "improved": False,
+        "improvement": 0,
+    }
 
     # Run OCR if needed and possible
     if need_ocr and shutil.which("ocrmypdf") and shutil.which("tesseract"):
@@ -134,8 +183,10 @@ def process_paper(
             cmd = [
                 "ocrmypdf",
                 "--skip-text",
-                "--optimize", "0",
-                "--language", "chi_sim+eng",
+                "--optimize",
+                "0",
+                "--language",
+                "chi_sim+eng",
                 pdf_path,
                 ocr_out,
             ]
@@ -144,36 +195,30 @@ def process_paper(
             # Re-extract
             paragraphs = extract_from_pdf(ocr_out)
             post_chars = sum(len(p) for p in paragraphs) if paragraphs else 0
-            # Record execution report
-            try:
-                exec_path = os.path.join(report_dir, "ocr_execution_report.json")
-                exec_data = {}
-                if os.path.exists(exec_path):
-                    with open(exec_path, "r", encoding="utf-8") as f:
-                        exec_data = json.load(f)
-                exec_data[paper_id] = {
+            ocr_record.update(
+                {
                     "ran_ocr": True,
                     "ocr_pdf_path": ocr_out,
-                    "pre_ocr_chars": total_chars,
                     "post_ocr_chars": post_chars,
-                    "improved": post_chars > total_chars,
-                    "improvement": post_chars - total_chars,
+                    "improved": post_chars > pre_ocr_chars,
+                    "improvement": post_chars - pre_ocr_chars,
                 }
-                with open(exec_path, "w", encoding="utf-8") as f:
-                    json.dump(exec_data, f, indent=2, ensure_ascii=False)
-            except Exception:
-                pass
+            )
 
             # Prefer OCR output if improved
-            if post_chars > total_chars:
+            if post_chars > pre_ocr_chars:
                 pdf_path = ocr_out
                 total_chars = post_chars
+                ocr_record["pdf_path"] = pdf_path
             else:
+                ocr_record["pdf_path"] = pdf_path
                 log(f"OCR did not improve text extraction for {paper_id}")
         except Exception as e:
             log(f"OCR failed for {paper_id}: {e}")
 
     if not paragraphs:
+        ocr_record["post_ocr_chars"] = total_chars
+        _write_ocr_record(report_dir, paper_id, ocr_record)
         log(f"No text extracted from {paper_id}")
         return None
 
@@ -194,6 +239,9 @@ def process_paper(
         pass
     except Exception:
         pass
+
+    ocr_record["post_ocr_chars"] = total_chars
+    _write_ocr_record(report_dir, paper_id, ocr_record)
 
     return result
 

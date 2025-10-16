@@ -1,0 +1,9 @@
+{
+  "id": "chinaxiv-202501.00001",
+  "title_en": "Sample Research on Pipeline Hardening",
+  "abstract_en": "This English abstract explains the hardened validation pipeline in more than fifty characters, ensuring QA acceptance.",
+  "body_en": [
+    "The translation highlights that validation gates now require actual artifacts, preventing false positives caused by empty inputs.",
+    "It also confirms that harvest and translation checks run deterministically using committed fixtures when real data is absent."
+  ]
+}

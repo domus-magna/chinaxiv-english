@@ -6,7 +6,7 @@ VPIP=$(VENV)/bin/pip
 DEV_LIMIT?=5
 MODEL?=
 
-.PHONY: setup test lint fmt smoke build serve health clean samples check-keys fix-keys ensure-env self-review
+.PHONY: setup test lint fmt smoke build serve health clean samples check-keys fix-keys ensure-env self-review gate-fixtures
 
 setup:
 	$(PY) -m pip install --upgrade pip
@@ -60,6 +60,9 @@ self-review-status:
 	else \
 		echo "❌ No self-review found"; \
 	fi
+
+gate-fixtures:
+	$(PY) scripts/prepare_gate_fixtures.py
 
 smoke:
 	# Attempt ChinaXiv harvest via BrightData (optimized) for current month if credentials exist

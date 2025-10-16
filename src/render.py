@@ -6,7 +6,7 @@ import os
 import shutil
 from typing import Any, Dict, List
 
-from jinja2 import Environment, FileSystemLoader, select_autoescape
+from jinja2 import Environment, FileSystemLoader, TemplateNotFound, select_autoescape
 import time
 
 from .utils import ensure_dir, log, read_json, write_text
@@ -103,9 +103,13 @@ def render_site(items: List[Dict[str, Any]]) -> None:
     write_text(os.path.join(base_out, "monitor.html"), html_monitor)
 
     # Donations page
-    tmpl_donations = env.get_template("donations.html")
-    html_donations = tmpl_donations.render(root=".", build_version=build_version)
-    write_text(os.path.join(base_out, "donation.html"), html_donations)
+    try:
+        tmpl_donations = env.get_template("donations.html")
+    except TemplateNotFound:
+        tmpl_donations = None
+    if tmpl_donations is not None:
+        html_donations = tmpl_donations.render(root=".", build_version=build_version)
+        write_text(os.path.join(base_out, "donation.html"), html_donations)
 
     # Item pages
     tmpl_item = env.get_template("item.html")

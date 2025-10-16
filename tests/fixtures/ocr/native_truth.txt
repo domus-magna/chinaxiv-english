@@ -1,0 +1,1 @@
+Sample OCR benchmark text with digits 12345.

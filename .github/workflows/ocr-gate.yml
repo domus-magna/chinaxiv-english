@@ -9,6 +9,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Install system OCR dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ghostscript qpdf tesseract-ocr tesseract-ocr-chi-sim
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -30,4 +34,3 @@ jobs:
             reports/ocr_gate_report.json
             reports/ocr_gate_report.md
           if-no-files-found: error
-
