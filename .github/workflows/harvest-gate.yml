@@ -4,58 +4,30 @@ on:
   workflow_dispatch:
     inputs:
       records_path:
-        description: 'Path to records JSON (optional)'
+        description: "Path to records JSON (optional)"
         required: false
 
 jobs:
   gate:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-
-      - name: Install system packages
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            tesseract-ocr \
-            tesseract-ocr-chi-sim \
-            tesseract-ocr-chi-tra \
-            ghostscript \
-            pngquant \
-            qpdf \
-            unpaper
-
-      - name: Install Python dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Seed validation fixtures (if needed)
-        run: |
-          python scripts/prepare_gate_fixtures.py
-
-      - name: Run harvest gate
-        env:
-          RECORDS_PATH: ${{ github.event.inputs.records_path }}
-        run: |
-          set -e
-          if [ -n "$RECORDS_PATH" ]; then
-            python -m src.validators.harvest_gate --records "$RECORDS_PATH"
-          else
-            python -m src.validators.harvest_gate
-          fi
-      - name: Upload harvest report
-        uses: actions/upload-artifact@v4
-        with:
-          name: harvest-report-${{ github.run_id }}
-          path: |
-            reports/harvest_report.json
-            reports/harvest_report.md
-          if-no-files-found: error
+    uses: ./.github/workflows/validation-gate.yml
+    with:
+      gate_id: harvest
+      pre_command: |
+        python scripts/prepare_gate_fixtures.py
+      command: |
+        set -e
+        if [ -n "$RECORDS_PATH" ]; then
+          python -m src.validators.harvest_gate --records "$RECORDS_PATH"
+        else
+          python -m src.validators.harvest_gate
+        fi
+      records_path: ${{ github.event.inputs.records_path || '' }}
+      artifact_name: harvest-report-${{ github.run_id }}
+      artifact_paths: |
+        reports/harvest_report.json
+        reports/harvest_report.md
+      artifact_if_missing: error
+    secrets:
+      openrouter_api_key: ${{ secrets.OPENROUTER_API_KEY }}
+      brightdata_api_key: ${{ secrets.BRIGHTDATA_API_KEY }}
+      brightdata_zone: ${{ secrets.BRIGHTDATA_ZONE }}

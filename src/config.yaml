@@ -25,6 +25,22 @@ glossary:
   - zh: "深度学习"
     en: "deep learning"
 
+validation_thresholds:
+  harvest:
+    min_schema_rate: 95.0
+    min_pdf_rate: 98.0
+  ocr:
+    min_char_gain: 500
+    min_multiplier: 5.0
+    min_pass_rate: 98.0
+    min_alpha_ratio: 0.05
+    max_most_common_ratio: 0.6
+  translation:
+    max_flagged_ratio: 0.05  # Allow up to 5% of translations to be flagged before failing
+    max_flagged_absolute: 10
+  pdf_detection:
+    min_char_threshold: 1500
+
 # DISABLED: We do not care about licenses. All papers translated in full.
 # license_mappings:
 #   CC-BY: { derivatives_allowed: true, badge: "CC BY" }

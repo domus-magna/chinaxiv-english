@@ -13,6 +13,7 @@
 - Removed stale `Dockerfile.ci`/build workflow; for now we rely on `ubuntu-latest` runners with per-job apt installs covering Tesseract + OCR dependencies.
 - Updated `preflight.yml`, `harvest-gate.yml`, and `translation-gate.yml` to install system packages inline before invoking the Python validators. This removes “missing binary” failures without introducing registry drift.
 - Introduced `pipeline-orchestrator.yml` as a top-level dispatcher (workflow_call) that sequences preflight → harvest → OCR → translation → QA → render. Current version triggers stage workflows and sets the stage for matrix parallelism; polling and gating still TODO.
+- Added reusable workflow `validation-gate.yml` so individual gate workflows share setup/install logic instead of duplicating steps.
 
 ### Environment validation (Stage 0)
 - `src/tools/env_diagnose.py`
@@ -39,6 +40,7 @@
   - Streams PDF head bytes to confirm validity and records resolved URLs and issue lists per paper.
   - Outputs structured `reports/harvest_report.json|md` and mirrors summary to `site/stats/validation/harvest_report.json`.
   - Gate now hard-fails when no records are present or thresholds are missed, eliminating false greens on empty input.
+- Harvest/QA thresholds are now configurable via `validation_thresholds.harvest` in `src/config.yaml`.
 - `harvest-gate.yml`
   - Runner-based job triggers `python -m src.validators.harvest_gate` (optional `records_path` input) after installing OCR tooling, then uploads artifacts.
   - `scripts/prepare_gate_fixtures.py` seeds representative records and PDFs when no harvested data exists, so the gate always exercises non-empty inputs in CI.
@@ -47,9 +49,14 @@
 ### Translation gating groundwork (Stage 3)
 - `translation-gate.yml`
   - Extended with workflow inputs (`batch_size`, `workers`, `matrix_index`) and provisions OCR tooling directly on the runner prior to executing the validator.
-  - Translation gate now fails fast if no translated artifacts exist or QA flags any record, preventing empty-pass scenarios.
+  - Translation gate now fails fast if no translated artifacts exist or QA flags beyond configurable thresholds (`validation_thresholds.translation`).
   - Uses the same fixture seeding helper to ensure gating covers real-looking translations even on fresh clones.
 - Translation queue hardening is WIP: `data/cloud_jobs.json` inspected; need resumable workers + cost tracking adjustments.
+- Added integration smoke tests under `tests/integration/test_pipeline_smoke.py` to exercise harvest → OCR → translation → render flow plus OCR improvement checks.
+
+### Stage 2 OCR enhancements
+- `src/pdf_pipeline.py` now records alpha/character distribution metrics and consults config-driven thresholds before accepting OCR output.
+- `src/validators/ocr_gate.py` enforces quality via alpha ratio and dominant-character ceilings alongside character gains (`validation_thresholds.ocr`).
 
 ### Reporting & artifacts
 - Reports stored under `reports/` and mirrored to `site/stats/validation/` (preflight + harvest). Need to add similar mirroring for OCR/translation/render once complete.
@@ -139,4 +146,4 @@
 
 ---
 
-_Last updated: 2025‑10‑16 by GPT‑5 Codex (pipeline audit agent)._ 
+_Last updated: 2025‑10‑16 by GPT‑5 Codex (pipeline audit agent)._

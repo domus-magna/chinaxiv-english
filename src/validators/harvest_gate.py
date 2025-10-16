@@ -14,6 +14,7 @@ from pathlib import Path
 import requests
 from bs4 import BeautifulSoup
 
+from src.config import get_config
 from src.reporting import build_markdown_report, save_validation_report
 
 
@@ -230,15 +231,19 @@ def run_harvest_gate(records_path: Optional[str] = None, out_dir: str = "reports
             },
         }
 
-    # Thresholds: schema >= 95%, pdf_ok >= 98% of those with schema_ok
+    thresholds = get_config().get("validation_thresholds", {}).get("harvest", {})
+    min_schema_rate = float(thresholds.get("min_schema_rate", 95.0))
+    min_pdf_rate = float(thresholds.get("min_pdf_rate", 98.0))
+
+    # Thresholds: schema >= configured %, pdf_ok >= configured % of schema_ok
     schema_rate = (schema_pass / total) * 100 if total else 0.0
     pdf_rate = (pdf_ok / schema_pass * 100) if schema_pass else 0.0
-    pass_threshold = (schema_rate >= 95.0) and (pdf_rate >= 98.0) and (dup_ids == 0)
+    pass_threshold = (schema_rate >= min_schema_rate) and (pdf_rate >= min_pdf_rate) and (dup_ids == 0)
 
     reasons: List[str] = []
-    if schema_rate < 95.0:
+    if schema_rate < min_schema_rate:
         reasons.append("schema_rate_below_threshold")
-    if pdf_rate < 98.0:
+    if pdf_rate < min_pdf_rate:
         reasons.append("pdf_rate_below_threshold")
     if dup_ids:
         reasons.append("duplicate_ids_detected")
@@ -253,6 +258,10 @@ def run_harvest_gate(records_path: Optional[str] = None, out_dir: str = "reports
         "pdf_rate": round(pdf_rate, 2),
         "pass": pass_threshold,
         "reasons": reasons,
+        "thresholds": {
+            "min_schema_rate": min_schema_rate,
+            "min_pdf_rate": min_pdf_rate,
+        },
     }
     detail = {
         "summary": summary,

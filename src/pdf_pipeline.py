@@ -12,11 +12,12 @@ import json
 import shutil
 import subprocess
 import time
-from typing import Dict, List, Optional
+from collections import Counter
+from typing import Any, Dict, List, Optional
 
 from tenacity import retry, stop_after_attempt, wait_exponential
 from .http_client import get_session
-from .config import get_proxies
+from .config import get_proxies, get_config
 from .body_extract import extract_from_pdf
 from .utils import log, read_json, write_json
 
@@ -121,6 +122,32 @@ def _write_ocr_record(report_dir: str, paper_id: str, record: Dict[str, Any]) ->
         fh.close()
 
 
+def _compute_text_metrics(paragraphs: List[str]) -> Dict[str, float]:
+    """Compute simple text quality metrics for OCR evaluation."""
+    text = "".join(paragraphs) if paragraphs else ""
+    char_count = len(text)
+    if not text:
+        return {
+            "char_count": 0,
+            "alpha_ratio": 0.0,
+            "most_common_ratio": 1.0,
+        }
+
+    alpha_chars = sum(1 for ch in text if ch.isalpha())
+    tokens = [ch for ch in text if not ch.isspace()]
+    if tokens:
+        most_common_count = Counter(tokens).most_common(1)[0][1]
+        most_common_ratio = most_common_count / len(tokens)
+    else:
+        most_common_ratio = 1.0
+
+    return {
+        "char_count": char_count,
+        "alpha_ratio": alpha_chars / char_count if char_count else 0.0,
+        "most_common_ratio": most_common_ratio,
+    }
+
+
 def process_paper(
     paper_id: str, pdf_url: str, pdf_dir: str = "data/pdfs"
 ) -> Optional[Dict]:
@@ -149,32 +176,46 @@ def process_paper(
     else:
         log(f"PDF exists: {paper_id}")
 
+    cfg = get_config()
+    threshold_cfg = cfg.get("validation_thresholds", {})
+    detection_cfg = threshold_cfg.get("pdf_detection", {})
+    ocr_cfg = threshold_cfg.get("ocr", {})
+    detect_char_threshold = int(detection_cfg.get("min_char_threshold", 1500))
+    min_char_gain = int(ocr_cfg.get("min_char_gain", 500))
+    min_multiplier = float(ocr_cfg.get("min_multiplier", 5.0))
+    min_alpha_ratio = float(ocr_cfg.get("min_alpha_ratio", 0.0))
+    max_most_common_ratio = float(ocr_cfg.get("max_most_common_ratio", 1.0))
+
     # Extract text
     log(f"Extracting text from {paper_id}...")
     paragraphs = extract_from_pdf(pdf_path)
-    total_chars = sum(len(p) for p in paragraphs) if paragraphs else 0
+    pre_metrics = _compute_text_metrics(paragraphs)
+    total_chars = pre_metrics["char_count"]
 
-    # OCR detection thresholds (simple heuristic)
-    need_ocr = False
-    DETECT_CHAR_THRESHOLD = 1500  # if less than this many characters, likely scanned
-    if not paragraphs or total_chars < DETECT_CHAR_THRESHOLD:
-        need_ocr = True
+    # OCR detection thresholds (configurable)
+    need_ocr = not paragraphs or total_chars < detect_char_threshold
 
     report_dir = os.path.join("reports")
-    pre_ocr_chars = total_chars
     ocr_record: Dict[str, Any] = {
         "pdf_path": pdf_path,
         "need_ocr": bool(need_ocr),
-        "pre_ocr_chars": pre_ocr_chars,
+        "pre_ocr_chars": pre_metrics["char_count"],
+        "pre_alpha_ratio": round(pre_metrics["alpha_ratio"], 4),
+        "pre_most_common_ratio": round(pre_metrics["most_common_ratio"], 4),
         "ran_ocr": False,
         "ocr_pdf_path": None,
-        "post_ocr_chars": pre_ocr_chars,
+        "post_ocr_chars": pre_metrics["char_count"],
+        "post_alpha_ratio": round(pre_metrics["alpha_ratio"], 4),
+        "post_most_common_ratio": round(pre_metrics["most_common_ratio"], 4),
         "improved": False,
         "improvement": 0,
+        "quality_ok": pre_metrics["alpha_ratio"] >= min_alpha_ratio
+        and pre_metrics["most_common_ratio"] <= max_most_common_ratio,
     }
 
     # Run OCR if needed and possible
     if need_ocr and shutil.which("ocrmypdf") and shutil.which("tesseract"):
+        original_paragraphs = paragraphs
         try:
             ocr_dir = os.path.join(pdf_dir, "ocr")
             os.makedirs(ocr_dir, exist_ok=True)
@@ -194,27 +235,50 @@ def process_paper(
             subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             # Re-extract
             paragraphs = extract_from_pdf(ocr_out)
-            post_chars = sum(len(p) for p in paragraphs) if paragraphs else 0
+            post_metrics = _compute_text_metrics(paragraphs)
+            post_chars = post_metrics["char_count"]
+            char_gain = post_chars - pre_metrics["char_count"]
+            ratio_gain = (
+                (post_chars / pre_metrics["char_count"])
+                if pre_metrics["char_count"] > 0
+                else (float("inf") if post_chars > 0 else 0.0)
+            )
+            char_gain_ok = (char_gain >= min_char_gain) or (
+                pre_metrics["char_count"] > 0 and ratio_gain >= min_multiplier
+            )
+            quality_ok = (
+                post_metrics["alpha_ratio"] >= min_alpha_ratio
+                and post_metrics["most_common_ratio"] <= max_most_common_ratio
+            )
+            improved_flag = char_gain_ok and quality_ok
             ocr_record.update(
                 {
                     "ran_ocr": True,
                     "ocr_pdf_path": ocr_out,
                     "post_ocr_chars": post_chars,
-                    "improved": post_chars > pre_ocr_chars,
-                    "improvement": post_chars - pre_ocr_chars,
+                    "post_alpha_ratio": round(post_metrics["alpha_ratio"], 4),
+                    "post_most_common_ratio": round(post_metrics["most_common_ratio"], 4),
+                    "improved": improved_flag,
+                    "improvement": char_gain,
+                    "quality_ok": quality_ok,
                 }
             )
 
             # Prefer OCR output if improved
-            if post_chars > pre_ocr_chars:
+            if improved_flag:
                 pdf_path = ocr_out
                 total_chars = post_chars
                 ocr_record["pdf_path"] = pdf_path
             else:
+                paragraphs = original_paragraphs
                 ocr_record["pdf_path"] = pdf_path
-                log(f"OCR did not improve text extraction for {paper_id}")
+                log(
+                    f"OCR did not meet improvement thresholds for {paper_id} "
+                    f"(char_gain_ok={char_gain_ok}, quality_ok={quality_ok})"
+                )
         except Exception as e:
             log(f"OCR failed for {paper_id}: {e}")
+            paragraphs = original_paragraphs
 
     if not paragraphs:
         ocr_record["post_ocr_chars"] = total_chars
