@@ -5,6 +5,7 @@ on:
 
 jobs:
   test-batch:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest-8-cores
     timeout-minutes: 360
     permissions:
