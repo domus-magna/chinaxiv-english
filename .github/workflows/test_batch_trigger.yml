@@ -2,6 +2,9 @@ name: Test Batch (No Inputs Workaround)
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/test_batch_trigger.yml'
 
 jobs:
   noop:

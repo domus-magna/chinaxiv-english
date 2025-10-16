@@ -4,6 +4,9 @@ on:
   workflow_dispatch: {}
   schedule:
     - cron: '0 12 * * *'  # Daily at 12:00 UTC
+  push:
+    paths:
+      - '.github/workflows/qa_report.yml'
 
 jobs:
   noop:

@@ -8,6 +8,9 @@ on:
         description: 'Papers per batch'
         required: false
         default: '50'
+  push:
+    paths:
+      - '.github/workflows/batch_test.yml'
 
 jobs:
   noop:
