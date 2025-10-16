@@ -40,12 +40,13 @@ class OptimizedChinaXivScraper:
             "binary_search_requests": 0,
         }
 
-    def fetch_page(self, url: str) -> Optional[str]:
+    def fetch_page(self, url: str, max_retries: int = 3) -> Optional[str]:
         """
-        Fetch page HTML using BrightData.
+        Fetch page HTML using BrightData with retry logic.
 
         Args:
             url: Full URL to fetch
+            max_retries: Maximum number of retry attempts
 
         Returns:
             HTML content if successful, None otherwise
@@ -57,29 +58,59 @@ class OptimizedChinaXivScraper:
 
         payload = {"zone": self.zone, "url": url, "format": "raw"}
 
-        try:
-            time.sleep(self.rate_limit)
+        for attempt in range(max_retries + 1):
+            try:
+                time.sleep(self.rate_limit)
 
-            response = requests.post(
-                self.api_url, headers=headers, json=payload, timeout=60
-            )
+                response = requests.post(
+                    self.api_url, headers=headers, json=payload, timeout=60
+                )
 
-            self.stats["total_attempts"] += 1
+                self.stats["total_attempts"] += 1
 
-            if response.status_code == 200:
-                html = response.text
+                if response.status_code == 200:
+                    html = response.text
 
-                # Check for error responses
-                if "<ErrorResponseData>" in html or len(html) < 1000:
+                    # Check for error responses
+                    if "<ErrorResponseData>" in html or len(html) < 1000:
+                        if attempt < max_retries:
+                            log(f"Error response, retrying {url} (attempt {attempt + 1})")
+                            time.sleep(2 ** attempt)  # Exponential backoff
+                            continue
+                        return None
+
+                    return html
+
+                elif response.status_code in [429, 503, 504]:
+                    # Rate limiting or server errors - retry with backoff
+                    if attempt < max_retries:
+                        backoff_time = 2 ** attempt
+                        log(f"Rate limited, retrying {url} in {backoff_time}s (attempt {attempt + 1})")
+                        time.sleep(backoff_time)
+                        continue
                     return None
 
-                return html
+                else:
+                    log(f"HTTP {response.status_code} for {url}")
+                    return None
 
-            return None
+            except requests.exceptions.Timeout:
+                if attempt < max_retries:
+                    log(f"Timeout, retrying {url} (attempt {attempt + 1})")
+                    time.sleep(2 ** attempt)
+                    continue
+                log(f"Timeout after {max_retries} retries for {url}")
+                return None
 
-        except Exception as e:
-            log(f"Fetch exception: {e}")
-            return None
+            except Exception as e:
+                if attempt < max_retries:
+                    log(f"Fetch exception, retrying {url}: {e} (attempt {attempt + 1})")
+                    time.sleep(2 ** attempt)
+                    continue
+                log(f"Fetch exception after {max_retries} retries for {url}: {e}")
+                return None
+
+        return None
 
     def paper_exists(self, paper_id: str) -> bool:
         """
