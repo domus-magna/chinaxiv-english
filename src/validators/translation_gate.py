@@ -58,6 +58,7 @@ def run_translation_gate(output_path: str = "reports/translation_report.json") -
 if __name__ == "__main__":
     summary = run_translation_gate()
     print(f"Summary: total={summary.total} passed={summary.passed} flagged={summary.flagged}")
+    # Intentional hard stop: any QA-flagged translation must be reviewed before downstream stages run.
     should_fail = (summary.total == 0) or (summary.flagged > 0)
     if should_fail:
         sys.stderr.write("Translation gate failed: no translations processed or QA flagged items.\n")

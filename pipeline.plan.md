@@ -32,7 +32,7 @@
   - Added exponential backoff and retry for 429/5xx/timeouts and log clarity for Bright Data responses.
 - `src/pdf_pipeline.py`
   - PDF downloads now validate content-type or `%PDF-` magic, enforce ≥1 KB size, and remove bogus files.
-  - OCR detection heuristics persisted to `reports/ocr_detection_report.json` (foundation for Stage 2 gate).
+  - OCR detection heuristics now persist to unified `reports/ocr_report.json` (foundation for Stage 2 gate).
 - `src/validators/harvest_gate.py`
   - Enforces strict schema (`id/title/abstract/creators/subjects/date/source_url/pdf_url`) with explicit error messaging.
   - Automatically resolves PDFs from landing pages when the saved URL fails (`BeautifulSoup` + relative link handling).

@@ -12,7 +12,7 @@ jobs:
       - name: Install system OCR dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ghostscript qpdf tesseract-ocr
+          sudo apt-get install -y ghostscript qpdf tesseract-ocr tesseract-ocr-chi-sim
       - name: Setup Python
         uses: actions/setup-python@v5
         with:

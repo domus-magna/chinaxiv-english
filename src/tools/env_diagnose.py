@@ -134,7 +134,7 @@ def check_brightdata_access(timeout: int = 10) -> Dict[str, Any]:
         import requests
 
         api_key = os.getenv("BRIGHTDATA_API_KEY") or get_api_key("BRIGHTDATA_API_KEY")
-        zone = os.getenv("BRIGHTDATA_ZONE") or os.getenv("BRIGHTDATA_ZONE")
+        zone = os.getenv("BRIGHTDATA_ZONE") or get_api_key("BRIGHTDATA_ZONE")
         if not zone:
             # Keep explicit; BRIGHTDATA_ZONE is required to route the request
             result["error"] = "BRIGHTDATA_ZONE not set"

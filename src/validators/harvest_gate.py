@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import glob
 import json
+import logging
 import os
 import re
 import sys
@@ -25,6 +26,7 @@ REQUIRED_FIELDS = [
     "pdf_url",
 ]
 USER_AGENT = "chinaxiv-harvest-gate/1.0"
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -104,7 +106,8 @@ def _discover_pdf_url(source_url: str) -> Optional[str]:
             if href.startswith("http"):
                 return href
             return requests.compat.urljoin(source_url, href)
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to resolve PDF via source page %s: %s", source_url, exc)
         return None
     return None
 
@@ -120,8 +123,9 @@ def _check_pdf_access(url: str, timeout: int = 30) -> bool:
         try:
             with open(local_path, "rb") as f:
                 head = f.read(5)
-            return bool(head.startswith(b"%PDF-") or local_path.suffix.lower() == ".pdf")
-        except Exception:
+            return bool(head.startswith(b"%PDF-"))
+        except Exception as exc:
+            logger.warning("Failed to read local PDF %s: %s", local_path, exc)
             return False
 
     try:
@@ -140,7 +144,8 @@ def _check_pdf_access(url: str, timeout: int = 30) -> bool:
             return chunk.startswith(b"%PDF-")
     except StopIteration:
         return False
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to access PDF %s: %s", url, exc)
         return False
 
 
@@ -190,12 +195,8 @@ def run_harvest_gate(records_path: Optional[str] = None, out_dir: str = "reports
         resolved_url, pdf_issues, pdf_ok_flag = _resolve_pdf(rec)
         if schema_ok:
             schema_pass += 1
-        else:
-            pdf_issues.extend(schema_errors)
         if pdf_ok_flag:
             pdf_ok += 1
-        else:
-            pdf_issues.extend(schema_errors)
         if rid in seen_ids:
             dup_ids += 1
             pdf_issues.append("Duplicate ID")
@@ -213,7 +214,7 @@ def run_harvest_gate(records_path: Optional[str] = None, out_dir: str = "reports
 
     # Thresholds: schema >= 95%, pdf_ok >= 98% of those with schema_ok
     schema_rate = (schema_pass / total) * 100 if total else 0.0
-    pdf_rate = (pdf_ok / max(schema_pass, 1)) * 100 if schema_pass else 0.0
+    pdf_rate = (pdf_ok / schema_pass * 100) if schema_pass else 0.0
     pass_threshold = (schema_rate >= 95.0) and (pdf_rate >= 98.0) and (dup_ids == 0)
 
     summary = {

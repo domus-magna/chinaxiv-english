@@ -18,50 +18,35 @@ class OCRGateSummary:
 
 
 def run_ocr_gate(report_dir: str = "reports") -> OCRGateSummary:
-    det_path = os.path.join(report_dir, "ocr_detection_report.json")
-    exec_path = os.path.join(report_dir, "ocr_execution_report.json")
+    report_path = os.path.join(report_dir, "ocr_report.json")
 
     try:
-        with open(det_path, "r", encoding="utf-8") as f:
-            det = json.load(f)
+        with open(report_path, "r", encoding="utf-8") as f:
+            records = json.load(f)
     except Exception:
-        det = {}
-    try:
-        with open(exec_path, "r", encoding="utf-8") as f:
-            exe = json.load(f)
-    except Exception:
-        exe = {}
+        records = {}
 
-    if not det:
-        detection_missing = True
-    else:
-        detection_missing = False
+    detection_missing = not bool(records)
 
-    flagged = sum(1 for v in det.values() if v.get("need_ocr"))
+    flagged = sum(1 for v in records.values() if v.get("need_ocr"))
     improved = 0
     results: Dict[str, Any] = {}
     missing_exec_ids = []
     unimproved_ids = []
 
-    for pid, meta in det.items():
+    for pid, meta in records.items():
         need = bool(meta.get("need_ocr"))
         pre = int(meta.get("pre_ocr_chars") or 0)
-        post = None
-        ran = False
-        improved_flag = False
-        if pid in exe:
-            ran = bool(exe[pid].get("ran_ocr"))
-            post = int(exe[pid].get("post_ocr_chars") or 0)
-            # Improvement threshold: +500 chars or 5x
-            improved_flag = ran and ((post - pre) >= 500 or (pre > 0 and (post / pre) >= 5.0))
-        elif need:
-            missing_exec_ids.append(pid)
-        if need and improved_flag:
-            improved += 1
+        post = int(meta.get("post_ocr_chars") or 0)
+        ran = bool(meta.get("ran_ocr"))
+        # Improvement threshold: +500 chars or 5x
+        improved_flag = ran and ((post - pre) >= 500 or (pre > 0 and (post / pre) >= 5.0))
         if need and not ran:
             missing_exec_ids.append(pid)
         if need and ran and not improved_flag:
             unimproved_ids.append(pid)
+        if need and improved_flag:
+            improved += 1
         results[pid] = {
             "need": need,
             "ran": ran,
@@ -70,7 +55,7 @@ def run_ocr_gate(report_dir: str = "reports") -> OCRGateSummary:
             "improved": improved_flag,
         }
 
-    # Deduplicate ids tracked in multiple branches
+    # Deduplicate in case the same ID was captured via multiple branches.
     missing_exec_ids = sorted(set(missing_exec_ids))
     unimproved_ids = sorted(set(unimproved_ids))
 
@@ -165,4 +150,3 @@ if __name__ == "__main__":
     )
     if not s.pass_threshold_met:
         raise SystemExit(1)
-
