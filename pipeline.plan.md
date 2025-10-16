@@ -69,6 +69,7 @@
 
 ### Stage 2 – OCR detection & execution
 - [x] Need detection + report scaffold (in `src/pdf_pipeline.py`)
+- [ ] Establish OCR accuracy benchmark (proof-of-concept harness added under `scripts/run_ocr_benchmark.py`; expand with Chinese samples + Ghostscript availability before gating)
 - [ ] Wire gate module (`src/validators/ocr_gate.py`) to assert coverage improvements
 - [ ] Add OCR execution retry metrics + fallback API (stored credentials TBD)
 
