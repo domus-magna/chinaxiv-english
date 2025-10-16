@@ -6,6 +6,13 @@ on:
     - cron: '0 12 * * *'  # Daily at 12:00 UTC
 
 jobs:
+  noop:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip push events
+        run: echo "QA report workflow runs only via schedule or manual dispatch."
+
   generate-report:
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     runs-on: ubuntu-latest

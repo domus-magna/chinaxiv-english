@@ -4,6 +4,13 @@ on:
   workflow_dispatch:
 
 jobs:
+  noop:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip push events
+        run: echo "Test batch workflow requires manual dispatch and secrets; skipping push."
+
   test-batch:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest-8-cores
