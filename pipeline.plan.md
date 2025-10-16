@@ -54,6 +54,7 @@
 ### Reporting & artifacts
 - Reports stored under `reports/` and mirrored to `site/stats/validation/` (preflight + harvest). Need to add similar mirroring for OCR/translation/render once complete.
 - Added `reports/harvest_audit_202502.json` + aggregate `reports/harvest_audit.json` for dashboards.
+- Introduced `src/reporting.py` helpers so validation gates share markdown/JSON generation and site mirroring logic.
 
 ## Outstanding work by stage
 
@@ -138,4 +139,4 @@
 
 ---
 
-_Last updated: 2025‑10‑15 by GPT‑5 Codex (pipeline audit agent)._
+_Last updated: 2025‑10‑16 by GPT‑5 Codex (pipeline audit agent)._ 

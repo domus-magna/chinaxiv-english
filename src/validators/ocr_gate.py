@@ -2,8 +2,13 @@ from __future__ import annotations
 
 import json
 import os
+import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
+
+from src.reporting import build_markdown_report, save_validation_report
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -24,6 +29,7 @@ def run_ocr_gate(report_dir: str = "reports") -> OCRGateSummary:
         with open(report_path, "r", encoding="utf-8") as f:
             records = json.load(f)
     except Exception:
+        logger.exception("Failed to load OCR report from %s", report_path)
         records = {}
 
     detection_missing = not bool(records)
@@ -83,44 +89,25 @@ def run_ocr_gate(report_dir: str = "reports") -> OCRGateSummary:
     if unimproved_ids:
         summary["reasons"].append("insufficient_improvement")
 
-    os.makedirs(report_dir, exist_ok=True)
-    with open(os.path.join(report_dir, "ocr_gate_report.json"), "w", encoding="utf-8") as f:
-        json.dump(
-            {
-                "summary": summary,
-                "results": results,
-                "missing_execution_ids": missing_exec_ids,
-                "unimproved_ids": unimproved_ids,
-            },
-            f,
-            indent=2,
-            ensure_ascii=False,
-        )
-    with open(os.path.join(report_dir, "ocr_gate_report.md"), "w", encoding="utf-8") as f:
-        lines = [
-            "# OCR Gate Report",
-            "",
-            f"Flagged: {flagged}",
-            f"Improved: {improved}",
-            f"Missing execution records: {len(missing_exec_ids)}",
-            f"Unimproved OCR runs: {len(unimproved_ids)}",
-            f"Pass rate: {summary['pass_rate']}%",
-            f"Status: {'PASS' if pass_ok else 'FAIL'}",
-        ]
-        if summary["reasons"]:
-            lines.append("")
-            lines.append("Reasons:")
-            for reason in summary["reasons"]:
-                lines.append(f"- {reason}")
-        lines.append("")
-        f.write("\n".join(lines))
-
-    try:
-        os.makedirs(os.path.join("site", "stats", "validation"), exist_ok=True)
-        with open(os.path.join("site", "stats", "validation", "ocr_gate_report.json"), "w", encoding="utf-8") as f:
-            json.dump({"summary": summary}, f, indent=2, ensure_ascii=False)
-    except Exception:
-        pass
+    payload = {
+        "summary": summary,
+        "results": results,
+        "missing_execution_ids": missing_exec_ids,
+        "unimproved_ids": unimproved_ids,
+    }
+    markdown = build_markdown_report(
+        "OCR Gate Report",
+        [
+            ("Flagged", flagged),
+            ("Improved", improved),
+            ("Missing execution records", len(missing_exec_ids)),
+            ("Unimproved OCR runs", len(unimproved_ids)),
+            ("Pass rate", f"{summary['pass_rate']}%"),
+            ("Status", "PASS" if pass_ok else "FAIL"),
+        ],
+        summary["reasons"],
+    )
+    save_validation_report(report_dir, "ocr_gate_report", payload, markdown, summary)
 
     return OCRGateSummary(
         flagged=flagged,
