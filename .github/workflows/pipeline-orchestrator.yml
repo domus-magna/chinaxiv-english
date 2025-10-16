@@ -1,0 +1,146 @@
+name: Pipeline Orchestrator
+
+on:
+  workflow_dispatch:
+    inputs:
+      stages:
+        description: 'Pipeline stages to run (comma-separated: preflight,harvest,ocr,translate,qa,render)'
+        required: false
+        default: 'preflight,harvest,ocr,translate,qa,render'
+      batch_size:
+        description: 'Papers per batch'
+        required: false
+        default: '100'
+      workers:
+        description: 'Parallel workers per stage'
+        required: false
+        default: '20'
+      matrix_size:
+        description: 'Matrix parallelism (number of parallel jobs)'
+        required: false
+        default: '3'
+
+jobs:
+  orchestrate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+    outputs:
+      stages: ${{ steps.parse-stages.outputs.stages }}
+      
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Parse stages
+        id: parse-stages
+        run: |
+          STAGES="${{ github.event.inputs.stages || 'preflight,harvest,ocr,translate,qa,render' }}"
+          echo "stages=$STAGES" >> $GITHUB_OUTPUT
+          echo "Running stages: $STAGES"
+
+      - name: Run preflight gate
+        if: contains(steps.parse-stages.outputs.stages, 'preflight')
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const result = await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'preflight.yml',
+              ref: 'main'
+            });
+            console.log('Preflight workflow triggered:', result.status);
+
+      - name: Wait for preflight completion
+        if: contains(steps.parse-stages.outputs.stages, 'preflight')
+        run: |
+          echo "Waiting for preflight validation to complete..."
+          sleep 60
+          # TODO: Add proper polling logic
+
+      - name: Run harvest gate
+        if: contains(steps.parse-stages.outputs.stages, 'harvest')
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const result = await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'harvest-gate.yml',
+              ref: 'main'
+            });
+            console.log('Harvest gate workflow triggered:', result.status);
+
+      - name: Run OCR gate
+        if: contains(steps.parse-stages.outputs.stages, 'ocr')
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const result = await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'ocr-gate.yml',
+              ref: 'main'
+            });
+            console.log('OCR gate workflow triggered:', result.status);
+
+      - name: Run translation with matrix
+        if: contains(steps.parse-stages.outputs.stages, 'translate')
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const matrixSize = parseInt('${{ github.event.inputs.matrix_size || '3' }}');
+            const batchSize = '${{ github.event.inputs.batch_size || '100' }}';
+            const workers = '${{ github.event.inputs.workers || '20' }}';
+            
+            for (let i = 0; i < matrixSize; i++) {
+              const result = await github.rest.actions.createWorkflowDispatch({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'translation-gate.yml',
+                ref: 'main',
+                inputs: {
+                  batch_size: batchSize,
+                  workers: workers,
+                  matrix_index: i.toString()
+                }
+              });
+              console.log(`Translation matrix job ${i} triggered:`, result.status);
+            }
+
+      - name: Run QA gate
+        if: contains(steps.parse-stages.outputs.stages, 'qa')
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const result = await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'translation-gate.yml',
+              ref: 'main'
+            });
+            console.log('QA gate workflow triggered:', result.status);
+
+      - name: Run render gate
+        if: contains(steps.parse-stages.outputs.stages, 'render')
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const result = await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'render-gate.yml',
+              ref: 'main'
+            });
+            console.log('Render gate workflow triggered:', result.status);
+
+      - name: Generate pipeline report
+        if: always()
+        run: |
+          echo "Pipeline orchestration complete"
+          echo "Stages requested: ${{ steps.parse-stages.outputs.stages }}"
+          echo "Matrix size: ${{ github.event.inputs.matrix_size || '3' }}"
+          echo "Batch size: ${{ github.event.inputs.batch_size || '100' }}"
+          echo "Workers: ${{ github.event.inputs.workers || '20' }}"

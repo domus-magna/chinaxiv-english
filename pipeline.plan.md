@@ -69,8 +69,8 @@
 
 ### Stage 2 – OCR detection & execution
 - [x] Need detection + report scaffold (in `src/pdf_pipeline.py`)
-- [ ] Establish OCR accuracy benchmark (proof-of-concept harness added under `scripts/run_ocr_benchmark.py`; expand with Chinese samples + Ghostscript availability before gating)
-- [ ] Wire gate module (`src/validators/ocr_gate.py`) to assert coverage improvements
+- [x] Establish OCR accuracy benchmark (`scripts/run_ocr_benchmark.py` now ships English + Chinese fixtures and runs clean with Ghostscript/qpdf + chi_sim data)
+- [x] Wire gate module (`src/validators/ocr_gate.py`) to assert coverage improvements and fail on missing execution or empty detection reports
 - [ ] Add OCR execution retry metrics + fallback API (stored credentials TBD)
 
 ### Stage 3 – Translation queue, backoff, idempotency

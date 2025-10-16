@@ -12,6 +12,7 @@ FIXTURE_DIR.mkdir(parents=True, exist_ok=True)
 
 NATIVE_TEXT = "Sample OCR benchmark text with digits 12345."
 SCANNED_TEXT = "Scanned OCR benchmark text for evaluation."  # same complexity
+CHINESE_TEXT = "这是一个用于 OCR 基准测试的中文样例。"
 
 
 def write_native_pdf(path: Path, text: str) -> None:
@@ -29,19 +30,47 @@ def write_native_pdf(path: Path, text: str) -> None:
 def write_scanned_pdf(path: Path, text: str) -> None:
     img = Image.new("RGB", (1200, 400), color="white")
     draw = ImageDraw.Draw(img)
-    try:
-        font = ImageFont.truetype("DejaVuSans.ttf", 48)
-    except OSError:
-        font = ImageFont.load_default()
+    font = load_font(48, prefers_cjk="测试" in text)
     draw.text((60, 150), text, fill="black", font=font)
     img.save(path, "PDF")
+
+
+def load_font(size: int, prefers_cjk: bool = False) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    """
+    Find a font that supports the desired glyphs. When prefers_cjk is True,
+    try common CJK fonts before falling back to the default bitmap font.
+    """
+    candidates = [
+        # macOS
+        "/System/Library/Fonts/PingFang.ttc",
+        "/System/Library/Fonts/STHeiti Light.ttc",
+        "/System/Library/Fonts/Hiragino Sans GB W3.ttc",
+        # Debian/Ubuntu
+        "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
+        "/usr/share/fonts/truetype/arphic/ukai.ttc",
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+    ]
+    if not prefers_cjk:
+        candidates.insert(0, "DejaVuSans.ttf")
+
+    for candidate in candidates:
+        try:
+            return ImageFont.truetype(candidate, size)
+        except OSError:
+            continue
+
+    # Best-effort fallback
+    return ImageFont.load_default()
 
 
 def main() -> None:
     write_native_pdf(FIXTURE_DIR / "native_text.pdf", NATIVE_TEXT)
     write_scanned_pdf(FIXTURE_DIR / "scanned_text.pdf", SCANNED_TEXT)
+    write_scanned_pdf(FIXTURE_DIR / "chinese_scanned.pdf", CHINESE_TEXT)
     (FIXTURE_DIR / "native_truth.txt").write_text(NATIVE_TEXT, encoding="utf-8")
     (FIXTURE_DIR / "scanned_truth.txt").write_text(SCANNED_TEXT, encoding="utf-8")
+    (FIXTURE_DIR / "chinese_truth.txt").write_text(CHINESE_TEXT, encoding="utf-8")
     print("Generated OCR sample PDFs and ground truth.")
 
 

@@ -13,6 +13,11 @@
 # Make this your unbreakable habit: TASK → `bd ready` → WORK → `bd update`
 # ======================================================================
 #
+# 📣 Non-negotiable BD Workflow (no exceptions)
+# - Run `bd ready` before touching any file. If it reports a block, stop—pushing forward creates rework.
+# - Run `bd update` the moment you finish so the next agent inherits fresh context.
+# - We log BD misses; repeat offenders trigger remediation because they break dependency planning and waste API credits.
+#
 # Repository Guidelines
 
 ## 🎯 Critical Development Philosophy (Read First!)

@@ -21,6 +21,7 @@ class Sample:
     pdf: Path
     truth: Path
     needs_ocr: bool = True
+    languages: str = "eng"
 
 
 SAMPLES = [
@@ -35,6 +36,14 @@ SAMPLES = [
         pdf=FIXTURE_DIR / "scanned_text.pdf",
         truth=FIXTURE_DIR / "scanned_truth.txt",
         needs_ocr=True,
+        languages="eng",
+    ),
+    Sample(
+        name="chinese_scanned",
+        pdf=FIXTURE_DIR / "chinese_scanned.pdf",
+        truth=FIXTURE_DIR / "chinese_truth.txt",
+        needs_ocr=True,
+        languages="chi_sim+eng",
     ),
 ]
 
@@ -57,7 +66,7 @@ def run_ocr(sample: Sample) -> tuple[str, float, float]:
                 OCRMYPDF,
                 "--skip-text",
                 "--language",
-                "eng",
+                sample.languages,
                 str(input_pdf),
                 str(output_pdf),
             ]
