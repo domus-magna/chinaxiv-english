@@ -14,6 +14,7 @@
 - Updated `preflight.yml`, `harvest-gate.yml`, and `translation-gate.yml` to install system packages inline before invoking the Python validators. This removes “missing binary” failures without introducing registry drift.
 - Introduced `pipeline-orchestrator.yml` as a top-level dispatcher (workflow_call) that sequences preflight → harvest → OCR → translation → QA → render. Current version triggers stage workflows and sets the stage for matrix parallelism; polling and gating still TODO.
 - Added reusable workflow `validation-gate.yml` so individual gate workflows share setup/install logic instead of duplicating steps.
+- Replaced the orchestrator's fixed `sleep 60` with API-backed polling so manual dispatches block until each gate workflow finishes (and fail fast on non-success conclusions).
 
 ### Environment validation (Stage 0)
 - `src/tools/env_diagnose.py`
@@ -47,6 +48,7 @@
 - **Outcome**: Latest audits for 2025-02 BrightData harvest show 0% PDF failures; remaining schema misses are limited to old IA identifiers lacking full metadata.
 
 ### Translation gating groundwork (Stage 3)
+- Added `tests/integration/test_pipeline_smoke.py` for an end-to-end smoke that exercises harvest/OCR/translation/render validators plus an OCR improvement regression case.
 - `translation-gate.yml`
   - Extended with workflow inputs (`batch_size`, `workers`, `matrix_index`) and provisions OCR tooling directly on the runner prior to executing the validator.
   - Translation gate now fails fast if no translated artifacts exist or QA flags beyond configurable thresholds (`validation_thresholds.translation`).
@@ -57,6 +59,10 @@
 ### Stage 2 OCR enhancements
 - `src/pdf_pipeline.py` now records alpha/character distribution metrics and consults config-driven thresholds before accepting OCR output.
 - `src/validators/ocr_gate.py` enforces quality via alpha ratio and dominant-character ceilings alongside character gains (`validation_thresholds.ocr`).
+
+### Scale benchmarking
+- Added `scripts/run_scale_benchmark.py` to generate synthetic workloads or benchmark existing records, capturing metrics under `reports/scale_benchmark/`.
+- Synthetic 3,411-record run (native fixture PDFs) completes in ~0.1s locally; schedule a BrightData-backed run once full harvest data is staged to capture network-bound timing.
 
 ### Reporting & artifacts
 - Reports stored under `reports/` and mirrored to `site/stats/validation/` (preflight + harvest). Need to add similar mirroring for OCR/translation/render once complete.
