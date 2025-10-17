@@ -14,6 +14,8 @@ from pathlib import Path
 import requests
 from bs4 import BeautifulSoup
 
+from src.reporting import build_markdown_report, save_validation_report
+
 
 REQUIRED_FIELDS = [
     "id",
@@ -49,6 +51,7 @@ def _load_records(path: str) -> List[Dict[str, Any]]:
             data = json.load(f)
         return data if isinstance(data, list) else []
     except Exception:
+        logger.exception("Failed to load records from %s", path)
         return []
 
 
@@ -169,16 +172,31 @@ def _resolve_pdf(rec: Dict[str, Any]) -> Tuple[Optional[str], List[str], bool]:
 
 def run_harvest_gate(records_path: Optional[str] = None, out_dir: str = "reports") -> HarvestGateSummary:
     records_path = records_path or _find_latest_records()
-    os.makedirs(out_dir, exist_ok=True)
-    report_path = os.path.join(out_dir, "harvest_report.json")
-    report_md = os.path.join(out_dir, "harvest_report.md")
-
     if not records_path:
-        data = {"error": "No records found"}
-        with open(report_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-        with open(report_md, "w", encoding="utf-8") as f:
-            f.write("# Harvest Report\n\nNo records found.\n")
+        summary = {
+            "records_path": None,
+            "total": 0,
+            "schema_pass": 0,
+            "pdf_ok": 0,
+            "dup_ids": 0,
+            "schema_rate": 0.0,
+            "pdf_rate": 0.0,
+            "pass": False,
+            "reasons": ["no_records_found"],
+        }
+        detail = {"summary": summary, "results": {}}
+        markdown = build_markdown_report(
+            "Harvest Report",
+            [
+                ("Total", 0),
+                ("Schema pass", "0 (0.0%)"),
+                ("PDF OK", "0 (0.0% of schema-pass)"),
+                ("Duplicate IDs", 0),
+                ("Status", "FAIL"),
+            ],
+            summary["reasons"],
+        )
+        save_validation_report(out_dir, "harvest_report", detail, markdown, summary)
         return HarvestGateSummary(total=0, schema_pass=0, pdf_ok=0, dup_ids=0, pass_threshold_met=False)
 
     recs = _load_records(records_path)
@@ -217,6 +235,14 @@ def run_harvest_gate(records_path: Optional[str] = None, out_dir: str = "reports
     pdf_rate = (pdf_ok / schema_pass * 100) if schema_pass else 0.0
     pass_threshold = (schema_rate >= 95.0) and (pdf_rate >= 98.0) and (dup_ids == 0)
 
+    reasons: List[str] = []
+    if schema_rate < 95.0:
+        reasons.append("schema_rate_below_threshold")
+    if pdf_rate < 98.0:
+        reasons.append("pdf_rate_below_threshold")
+    if dup_ids:
+        reasons.append("duplicate_ids_detected")
+
     summary = {
         "records_path": records_path,
         "total": total,
@@ -226,32 +252,24 @@ def run_harvest_gate(records_path: Optional[str] = None, out_dir: str = "reports
         "schema_rate": round(schema_rate, 2),
         "pdf_rate": round(pdf_rate, 2),
         "pass": pass_threshold,
+        "reasons": reasons,
     }
     detail = {
         "summary": summary,
         "results": per_rec,
     }
-    with open(report_path, "w", encoding="utf-8") as f:
-        json.dump(detail, f, indent=2, ensure_ascii=False)
-    with open(report_md, "w", encoding="utf-8") as f:
-        f.write("\n".join([
-            "# Harvest Report",
-            "",
-            f"Total: {total}",
-            f"Schema pass: {schema_pass} ({summary['schema_rate']}%)",
-            f"PDF OK: {pdf_ok} ({summary['pdf_rate']}% of schema-pass)",
-            f"Duplicate IDs: {dup_ids}",
-            f"Status: {'PASS' if pass_threshold else 'FAIL'}",
-            "",
-        ]))
-
-    # Mirror JSON for site
-    try:
-        os.makedirs(os.path.join("site", "stats", "validation"), exist_ok=True)
-        with open(os.path.join("site", "stats", "validation", "harvest_report.json"), "w", encoding="utf-8") as f:
-            json.dump({"summary": summary}, f, indent=2, ensure_ascii=False)
-    except Exception:
-        pass
+    markdown = build_markdown_report(
+        "Harvest Report",
+        [
+            ("Total", total),
+            ("Schema pass", f"{schema_pass} ({summary['schema_rate']}%)"),
+            ("PDF OK", f"{pdf_ok} ({summary['pdf_rate']}% of schema-pass)"),
+            ("Duplicate IDs", dup_ids),
+            ("Status", "PASS" if pass_threshold else "FAIL"),
+        ],
+        reasons,
+    )
+    save_validation_report(out_dir, "harvest_report", detail, markdown, summary)
 
     return HarvestGateSummary(total=total, schema_pass=schema_pass, pdf_ok=pdf_ok, dup_ids=dup_ids, pass_threshold_met=pass_threshold)
 
