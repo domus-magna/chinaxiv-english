@@ -1,0 +1,104 @@
+name: Validation Gate Template
+
+on:
+  workflow_call:
+    inputs:
+      gate_id:
+        description: "Identifier for the gate (used in logging)"
+        type: string
+        required: true
+      command:
+        description: "Shell command to execute for the gate"
+        type: string
+        required: true
+      pre_command:
+        description: "Optional shell command to run before the main gate command"
+        type: string
+        required: false
+      artifact_name:
+        description: "Artifact name for uploaded reports"
+        type: string
+        required: false
+      artifact_paths:
+        description: "Newline-separated list of artifact paths to upload"
+        type: string
+        required: false
+      artifact_if_missing:
+        description: "Behavior when artifact paths are missing (default warn)"
+        type: string
+        required: false
+      records_path:
+        description: "Optional records path exposed to the gate via $RECORDS_PATH"
+        type: string
+        required: false
+      timeout_minutes:
+        description: "Job timeout in minutes"
+        type: number
+        required: false
+    secrets:
+      openrouter_api_key:
+        required: false
+      brightdata_api_key:
+        required: false
+      brightdata_zone:
+        required: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout_minutes || 60 }}
+    env:
+      GATE_ID: ${{ inputs.gate_id }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install system packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            tesseract-ocr \
+            tesseract-ocr-chi-sim \
+            tesseract-ocr-chi-tra \
+            ghostscript \
+            pngquant \
+            qpdf \
+            unpaper
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run pre-command
+        if: ${{ inputs.pre_command && inputs.pre_command != '' }}
+        shell: bash
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.openrouter_api_key }}
+          BRIGHTDATA_API_KEY: ${{ secrets.brightdata_api_key }}
+          BRIGHTDATA_ZONE: ${{ secrets.brightdata_zone }}
+          RECORDS_PATH: ${{ inputs.records_path }}
+        run: ${{ inputs.pre_command }}
+
+      - name: Execute ${{ inputs.gate_id }} gate
+        shell: bash
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.openrouter_api_key }}
+          BRIGHTDATA_API_KEY: ${{ secrets.brightdata_api_key }}
+          BRIGHTDATA_ZONE: ${{ secrets.brightdata_zone }}
+          RECORDS_PATH: ${{ inputs.records_path }}
+        run: ${{ inputs.command }}
+
+      - name: Upload artifacts
+        if: ${{ inputs.artifact_paths && inputs.artifact_paths != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact_name || format('{0}-reports-{1}', inputs.gate_id, github.run_id) }}
+          path: ${{ inputs.artifact_paths }}
+          if-no-files-found: ${{ inputs.artifact_if_missing || 'warn' }}
